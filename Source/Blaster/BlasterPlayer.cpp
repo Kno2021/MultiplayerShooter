@@ -10,6 +10,7 @@
 #include "Blaster/Weapons/Weapon.h"
 #include "Blaster/BlasterComponents/CombatComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Kismet/KismetMathLibrary.h"
 
 ABlasterPlayer::ABlasterPlayer()
 {
@@ -62,6 +63,7 @@ void ABlasterPlayer::BeginPlay()
 void ABlasterPlayer::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+	AimOffset(DeltaTime);
 	
 }
 
@@ -212,6 +214,51 @@ void ABlasterPlayer::AimButtonReleased()
 	{
 		//Kombat->bAiming = false;
 		Kombat->SetAiming(false);
+	}
+}
+
+void ABlasterPlayer::AimOffset(float DeltaTime)
+{
+	if (Kombat && Kombat->EquippedWeapon == nullptr) 
+	{
+		StartingAimRotation = FRotator(0.0f, GetBaseAimRotation().Yaw, 0.0f);
+		return;
+	}
+	FVector Velocity = GetVelocity();
+	Velocity.Z = 0.0f;
+	float Speed = Velocity.Size();
+	bool bIsInAir = GetCharacterMovement()->IsFalling();
+
+	if (Speed == 0.0f && !bIsInAir)
+	{
+		/*float const Yaw = GetBaseAimRotation().Yaw;
+		if (true)
+		{
+
+		}
+		FVector2D InRange(90.f, 360.f);
+		FVector2D OutRange(-90.f, 0.f);
+		AO_Yaw = FMath::GetMappedRangeValueClamped(InRange, OutRange, Yaw);*/
+		//AO_Yaw = GetBaseAimRotation().GetNormalized().Yaw;
+
+		FRotator CurrentAimRotation = FRotator(0.0f, GetBaseAimRotation().Yaw, 0.0f);
+		FRotator DeltaAimRotation = UKismetMathLibrary::NormalizedDeltaRotator(CurrentAimRotation, StartingAimRotation);
+		AO_Yaw = DeltaAimRotation.Yaw;
+		bUseControllerRotationYaw = false;
+	}
+	if (Speed > 0.f || bIsInAir)
+	{
+		StartingAimRotation = FRotator(0.0f, GetBaseAimRotation().Yaw, 0.0f);
+		AO_Yaw = 0.0f;
+		bUseControllerRotationYaw = true;
+	}
+
+	AO_Pitch = GetBaseAimRotation().Pitch;
+	if (AO_Pitch > 90.f && !IsLocallyControlled())
+	{
+		FVector2D InRange(270.f, 360.f);
+		FVector2D OutRange(-90.f, 0.f);
+		AO_Pitch = FMath::GetMappedRangeValueClamped(InRange, OutRange, AO_Pitch);
 	}
 }
 
