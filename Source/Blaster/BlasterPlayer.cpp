@@ -42,6 +42,8 @@ ABlasterPlayer::ABlasterPlayer()
 	GetCharacterMovement()->NavAgentProps.bCanCrouch = true;
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECollisionChannel::ECC_Camera, ECollisionResponse::ECR_Ignore);
 	GetMesh()->SetCollisionResponseToChannel(ECollisionChannel::ECC_Camera, ECollisionResponse::ECR_Ignore);
+
+	TurningInPlace = ETurningInPlace::ETIP_NotTurning;
 }
 
 void ABlasterPlayer::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -231,26 +233,22 @@ void ABlasterPlayer::AimOffset(float DeltaTime)
 
 	if (Speed == 0.0f && !bIsInAir)
 	{
-		/*float const Yaw = GetBaseAimRotation().Yaw;
-		if (true)
-		{
-
-		}
-		FVector2D InRange(90.f, 360.f);
-		FVector2D OutRange(-90.f, 0.f);
-		AO_Yaw = FMath::GetMappedRangeValueClamped(InRange, OutRange, Yaw);*/
-		//AO_Yaw = GetBaseAimRotation().GetNormalized().Yaw;
-
 		FRotator CurrentAimRotation = FRotator(0.0f, GetBaseAimRotation().Yaw, 0.0f);
 		FRotator DeltaAimRotation = UKismetMathLibrary::NormalizedDeltaRotator(CurrentAimRotation, StartingAimRotation);
 		AO_Yaw = DeltaAimRotation.Yaw;
-		bUseControllerRotationYaw = false;
+		if (TurningInPlace == ETurningInPlace::ETIP_NotTurning)
+		{
+			InterpAO_Yaw = AO_Yaw;
+		}
+		bUseControllerRotationYaw = true;
+		TurnInPlace(DeltaTime);
 	}
 	if (Speed > 0.f || bIsInAir)
 	{
 		StartingAimRotation = FRotator(0.0f, GetBaseAimRotation().Yaw, 0.0f);
 		AO_Yaw = 0.0f;
 		bUseControllerRotationYaw = true;
+		TurningInPlace = ETurningInPlace::ETIP_NotTurning;
 	}
 
 	AO_Pitch = GetBaseAimRotation().Pitch;
@@ -259,6 +257,30 @@ void ABlasterPlayer::AimOffset(float DeltaTime)
 		FVector2D InRange(270.f, 360.f);
 		FVector2D OutRange(-90.f, 0.f);
 		AO_Pitch = FMath::GetMappedRangeValueClamped(InRange, OutRange, AO_Pitch);
+	}
+}
+
+void ABlasterPlayer::TurnInPlace(float DeltaTime)
+{
+	//UE_LOG(LogTemp, Warning, TEXT("AO_Yaw: %f"), AO_Yaw);
+	if (AO_Yaw > 90.f)
+	{
+		TurningInPlace = ETurningInPlace::ETIP_Right;
+	}
+	else if (AO_Yaw < -90.f)
+	{
+		TurningInPlace = ETurningInPlace::ETIP_Left;
+	}
+	if (TurningInPlace != ETurningInPlace::ETIP_NotTurning)
+	{
+		InterpAO_Yaw = FMath::FInterpTo(InterpAO_Yaw, 0.f, DeltaTime, 6.f);
+		AO_Yaw = InterpAO_Yaw;
+
+		if (FMath::Abs(AO_Yaw) < 15.f)
+		{
+			TurningInPlace = ETurningInPlace::ETIP_NotTurning;
+			StartingAimRotation = FRotator(0.0f, GetBaseAimRotation().Yaw, 0.0f);
+		}
 	}
 }
 
@@ -286,5 +308,12 @@ bool ABlasterPlayer::IsWeaponEquipped()
 bool ABlasterPlayer::IsAiming()
 {
 	return (Kombat && Kombat->bAiming);
+}
+
+AWeapon* ABlasterPlayer::GetEquippedWeapon()
+{
+	if (Kombat == nullptr) return nullptr;
+
+	return Kombat->EquippedWeapon;
 }
 
