@@ -11,6 +11,7 @@
 #include "Blaster/BlasterComponents/CombatComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "BlasterAnimInstance.h"
 
 ABlasterPlayer::ABlasterPlayer()
 {
@@ -40,6 +41,7 @@ ABlasterPlayer::ABlasterPlayer()
 	Kombat->SetIsReplicated(true);
 
 	GetCharacterMovement()->NavAgentProps.bCanCrouch = true;
+	GetCharacterMovement()->RotationRate = FRotator(0.f, 0.f, 700.f);
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECollisionChannel::ECC_Camera, ECollisionResponse::ECR_Ignore);
 	GetMesh()->SetCollisionResponseToChannel(ECollisionChannel::ECC_Camera, ECollisionResponse::ECR_Ignore);
 
@@ -77,7 +79,7 @@ void ABlasterPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 
 	// Set up gameplay key bindings lala
 	check(PlayerInputComponent);
-	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
+	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ABlasterPlayer::Jump);
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
 
 	PlayerInputComponent->BindAxis("MoveForward", this, &ABlasterPlayer::MoveForward);
@@ -97,6 +99,8 @@ void ABlasterPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 	PlayerInputComponent->BindAction("Crouch", IE_Pressed, this, &ABlasterPlayer::CrouchButtonPressed);
 	PlayerInputComponent->BindAction("Aim", IE_Pressed, this, &ABlasterPlayer::AimButtonPressed);
 	PlayerInputComponent->BindAction("Aim", IE_Released, this, &ABlasterPlayer::AimButtonReleased);
+	PlayerInputComponent->BindAction("Fire", IE_Pressed, this, &ABlasterPlayer::FireButtonPressed);
+	PlayerInputComponent->BindAction("Fire", IE_Released, this, &ABlasterPlayer::FireButtonReleased);
 }
 
 void ABlasterPlayer::PostInitializeComponents()
@@ -106,6 +110,20 @@ void ABlasterPlayer::PostInitializeComponents()
 	if (Kombat)
 	{
 		Kombat->Character = this;
+	}
+}
+
+void ABlasterPlayer::PlayFireMontage(bool bAiming)
+{
+	if (Kombat == nullptr || Kombat->EquippedWeapon == nullptr) return;
+	
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+	if (AnimInstance && FireWeaponMontage)
+	{
+		AnimInstance->Montage_Play(FireWeaponMontage);
+		FName SectionName;
+		SectionName = bAiming ? FName("RifleAim") : FName("RifleHip");
+		AnimInstance->Montage_JumpToSection(SectionName);
 	}
 }
 
@@ -205,9 +223,8 @@ void ABlasterPlayer::CrouchButtonPressed()
 
 void ABlasterPlayer::AimButtonPressed()
 {
-	if (Kombat)
+	if (Kombat && Kombat->EquippedWeapon != nullptr)
 	{
-		//Kombat->bAiming = true;
 		Kombat->SetAiming(true);
 	}
 }
@@ -216,7 +233,6 @@ void ABlasterPlayer::AimButtonReleased()
 {
 	if (Kombat)
 	{
-		//Kombat->bAiming = false;
 		Kombat->SetAiming(false);
 	}
 }
@@ -259,6 +275,34 @@ void ABlasterPlayer::AimOffset(float DeltaTime)
 		FVector2D InRange(270.f, 360.f);
 		FVector2D OutRange(-90.f, 0.f);
 		AO_Pitch = FMath::GetMappedRangeValueClamped(InRange, OutRange, AO_Pitch);
+	}
+}
+
+void ABlasterPlayer::Jump()
+{
+	if (bIsCrouched)
+	{
+		UnCrouch();
+	}
+	else 
+	{
+		Super::Jump();
+	}
+}
+
+void ABlasterPlayer::FireButtonPressed()
+{
+	if (Kombat)
+	{
+		Kombat->FireButtonPressed(true);
+	}
+}
+
+void ABlasterPlayer::FireButtonReleased()
+{
+	if (Kombat)
+	{
+		Kombat->FireButtonPressed(false);
 	}
 }
 
