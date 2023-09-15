@@ -72,4 +72,19 @@ private:
 
 	UPROPERTY(BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAccess = " true"))
 	ETurningInPlace TurningInPlace;
+
+	UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = " true"))
+	FRotator RightHandRotation;
+
+	UPROPERTY(BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAccess = " true"))
+	bool bLocallyControlled;
+
+	UPROPERTY(EditAnywhere, Category = "WeaponRotationCorrection")
+	float RightHandRotationRoll = 0.f;
+
+	UPROPERTY(EditAnywhere, Category = "WeaponRotationCorrection")
+	float RightHandRotationYaw = 5.f;
+
+	UPROPERTY(EditAnywhere, Category = "WeaponRotationCorrection")
+	float RightHandRotationPitch = -1.f;
 };

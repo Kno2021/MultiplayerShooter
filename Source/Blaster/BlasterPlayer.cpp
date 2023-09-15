@@ -363,3 +363,10 @@ AWeapon* ABlasterPlayer::GetEquippedWeapon()
 	return Kombat->EquippedWeapon;
 }
 
+FVector ABlasterPlayer::GetHitTarget() const
+{
+	if(Kombat == nullptr) return FVector();
+
+	return Kombat->HitTarget;
+}
+
