@@ -21,11 +21,11 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void PostInitializeComponents() override;
 	void PlayFireMontage(bool bAiming);
-
-	//UFUNCTION(NetMulticast, Unreliable)
-	//void MulticastHit();
-
+	void PlayEliminationMontage();
 	virtual void OnRep_ReplicatedMovement() override;
+	void Eliminated();
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastEliminated();
 
 protected:
 	virtual void BeginPlay() override;
@@ -84,6 +84,9 @@ private:
 	UPROPERTY(EditAnywhere, Category = Combat)
 	class UAnimMontage* HitReactMontage;
 
+	UPROPERTY(EditAnywhere, Category = Combat)
+	class UAnimMontage* EliminationMontage;
+
 	void HideCameraIfCharacterClose();
 
 	UPROPERTY(EditAnywhere)
@@ -109,6 +112,15 @@ private:
 
 	class ABlasterPlayerController* BlasterPlayerController;
 
+	bool bEliminated = false;
+
+	FTimerHandle EliminationTimer;
+
+	void EliminationTimerFinished();
+
+	UPROPERTY(EditDefaultsOnly)
+	float EliminationDelay = 3.0f;
+
 public:	
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAcces = "true"))
@@ -124,4 +136,5 @@ public:
 	FVector GetHitTarget() const;
 	FORCEINLINE UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 	FORCEINLINE bool ShouldRotateRootBone() const { return bRotateRootBone; }
+	FORCEINLINE bool IsEliminated() const { return bEliminated; }
 };

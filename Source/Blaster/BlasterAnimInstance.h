@@ -90,4 +90,7 @@ private:
 
 	UPROPERTY(EditAnywhere, Category = "WeaponRotationCorrection")
 	float RightHandRotationPitch = -1.f;
+
+	UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = " true"))
+	bool bEliminated;
 };
