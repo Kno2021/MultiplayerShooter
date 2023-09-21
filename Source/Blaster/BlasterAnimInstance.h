@@ -79,9 +79,6 @@ private:
 	UPROPERTY(BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAccess = " true"))
 	bool bLocallyControlled;
 
-	UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = " true"))
-	bool bRotateRootBone;
-
 	UPROPERTY(EditAnywhere, Category = "WeaponRotationCorrection")
 	float RightHandRotationRoll = 0.f;
 

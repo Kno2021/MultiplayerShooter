@@ -4,10 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "Blaster/HUD/BlasterHUD.h"
 #include "CombatComponent.generated.h"
 
-#define TRACE_LENGHT 1000000000000000.f
+#define TRACE_LENGHT 10000000.f
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class BLASTER_API UCombatComponent : public UActorComponent
@@ -34,8 +33,6 @@ protected:
 	void OnRep_EquippedWeapon();
 
 	void FireButtonPressed(bool bPressed);
-
-	void Fire();
 
 	UFUNCTION(Server, Reliable)
 	void ServerFire(const FVector_NetQuantize& TraceHitTarget);
@@ -72,7 +69,6 @@ private:
 	float CrosshairInAirFactor; //same thing
 	float CrosshairAimFactor;
 	float CrosshairShootingFactor;
-	FHUDPackage HUDPackage;
 
 	FVector HitTarget;
 
@@ -90,14 +86,6 @@ private:
 	float ZoomedInterpSpeed = 20.f;
 
 	void InterpFOV(float DeltaTime);
-
-	//automatic fire
-	FTimerHandle FireTimer;
-
-	bool bCanFire = true;
-
-	void StartFireTimer();
-	void FireTimerFinished();
 
 public:	
 	

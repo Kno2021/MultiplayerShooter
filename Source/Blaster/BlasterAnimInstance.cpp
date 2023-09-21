@@ -21,9 +21,10 @@ void UBlasterAnimInstance::NativeUpdateAnimation(float DeltaTime)
 	if (BlasterCharacter == nullptr)
 	{
 		BlasterCharacter = Cast<ABlasterPlayer>(TryGetPawnOwner());
+		return;
 	}
 
-	if (BlasterCharacter == nullptr) return; //maybe this is not needed, check and delete comment!!!!!!!!!!
+	//if (BlasterCharacter == nullptr) return; //maybe this is not needed, check and delete comment!!!!!!!!!!
 
 	FVector Velocity = BlasterCharacter->GetVelocity();
 	Velocity.Z = 0.0f;
@@ -36,7 +37,6 @@ void UBlasterAnimInstance::NativeUpdateAnimation(float DeltaTime)
 	bIsCrouched = BlasterCharacter->bIsCrouched;
 	bAiming = BlasterCharacter->IsAiming();
 	TurningInPlace = BlasterCharacter->GetTurningInPlace();
-	bRotateRootBone = BlasterCharacter->ShouldRotateRootBone();
 
 	//Offset yaw for strafing
 	FRotator AimRotation = BlasterCharacter->GetBaseAimRotation(); //global Z rotation, up.
@@ -66,16 +66,14 @@ void UBlasterAnimInstance::NativeUpdateAnimation(float DeltaTime)
 		if (BlasterCharacter->IsLocallyControlled()) 
 		{
 			FTransform RightHandTransform = BlasterCharacter->GetMesh()->GetSocketTransform(FName("hand_r"), ERelativeTransformSpace::RTS_World);
-			FRotator LookAtRotation = UKismetMathLibrary::FindLookAtRotation(RightHandTransform.GetLocation(), RightHandTransform.GetLocation() + (RightHandTransform.GetLocation() - BlasterCharacter->GetHitTarget()));
-			RightHandRotation = FMath::RInterpTo(RightHandRotation, LookAtRotation, DeltaTime, 60.f);
+			RightHandRotation = UKismetMathLibrary::FindLookAtRotation(RightHandTransform.GetLocation(), RightHandTransform.GetLocation() + (RightHandTransform.GetLocation() - BlasterCharacter->GetHitTarget()));
 			RightHandRotation.Yaw += RightHandRotationYaw;
 			RightHandRotation.Pitch += RightHandRotationPitch;
-			RightHandRotation.Roll += RightHandRotationRoll;
 			
 			bLocallyControlled = true;
 			FTransform MuzzleTipTransform = EquippedWeapon->GetWeaponMesh()->GetSocketTransform(FName("MuzzleFlash"), ERelativeTransformSpace::RTS_World);
 			FVector MuzzleX(FRotationMatrix(MuzzleTipTransform.GetRotation().Rotator()).GetUnitAxis(EAxis::X));
-			DrawDebugLine(GetWorld(), MuzzleTipTransform.GetLocation(), MuzzleTipTransform.GetLocation() + MuzzleX * 10000.f, FColor::Red);
+			DrawDebugLine(GetWorld(), MuzzleTipTransform.GetLocation(), MuzzleTipTransform.GetLocation() + MuzzleX * 1000.f, FColor::Red);
 			DrawDebugLine(GetWorld(), MuzzleTipTransform.GetLocation(), BlasterCharacter->GetHitTarget(), FColor::Yellow);
 		}
 		
