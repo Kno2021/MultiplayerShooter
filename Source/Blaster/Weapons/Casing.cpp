@@ -34,7 +34,7 @@ void ACasing::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitive
 {
 	if (ShellSound)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("sound should play"));
+		//UE_LOG(LogTemp, Warning, TEXT("sound should play"));
 		UGameplayStatics::PlaySoundAtLocation(this, ShellSound, GetActorLocation());
 	}
 

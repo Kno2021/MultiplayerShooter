@@ -54,6 +54,8 @@ ABlasterPlayer::ABlasterPlayer()
 	TurningInPlace = ETurningInPlace::ETIP_NotTurning;
 	NetUpdateFrequency = 66.f;
 	MinNetUpdateFrequency = 33.f;
+
+	DissolveTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("DissolveTimelineComponent"));
 }
 
 void ABlasterPlayer::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -72,7 +74,6 @@ void ABlasterPlayer::OnRep_ReplicatedMovement()
 	SimProxiesTurn();
 	TimeSinceLastMovementReplication = 0.f;
 }
-
 
 
 void ABlasterPlayer::BeginPlay()
@@ -164,7 +165,7 @@ void ABlasterPlayer::PlayFireMontage(bool bAiming)
 void ABlasterPlayer::PlayEliminationMontage()
 {
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
-	if (AnimInstance && EliminationMontage)
+	if (AnimInstance && EliminationMontage && !AnimInstance->IsAnyMontagePlaying())
 	{
 		AnimInstance->Montage_Play(EliminationMontage);
 		/*FName SectionName;
@@ -175,7 +176,7 @@ void ABlasterPlayer::PlayEliminationMontage()
 
 void ABlasterPlayer::PlayHitReactMontage()
 {
-	if (Kombat == nullptr || Kombat->EquippedWeapon == nullptr) return;
+	if (Kombat == nullptr || Kombat->EquippedWeapon == nullptr || bEliminated) return;
 
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 	if (AnimInstance && HitReactMontage && !AnimInstance->IsAnyMontagePlaying())
@@ -191,7 +192,6 @@ void ABlasterPlayer::ReceiveDamage(AActor* DamagedActor, float Damage, const UDa
 {
 	Health = FMath::Clamp(Health - Damage, 0.f, MaxHealth);
 	UpdateHUDHealth();
-	PlayHitReactMontage();
 	
 	if (Health == 0.f)
 	{
@@ -202,8 +202,10 @@ void ABlasterPlayer::ReceiveDamage(AActor* DamagedActor, float Damage, const UDa
 			ABlasterPlayerController* AttackerController = Cast<ABlasterPlayerController>(InstigatorController);
 			BlasterGameMode->PlayerEliminated(this, BlasterPlayerController, AttackerController);
 		}
+		return;
 	}
-	
+
+	PlayHitReactMontage();
 }
 
 void ABlasterPlayer::OnRep_Health()
@@ -217,6 +219,10 @@ void ABlasterPlayer::OnRep_Health()
 
 void ABlasterPlayer::Eliminated()
 {
+	if (Kombat && Kombat->EquippedWeapon)
+	{
+		Kombat->EquippedWeapon->Dropped();
+	}
 	MulticastEliminated();
 	GetWorldTimerManager().SetTimer(EliminationTimer, this, &ABlasterPlayer::EliminationTimerFinished, EliminationDelay);
 }
@@ -225,6 +231,34 @@ void ABlasterPlayer::MulticastEliminated_Implementation()
 {
 	bEliminated = true;
 	PlayEliminationMontage();
+
+	//start dissolve effect
+	if (DissolveMaterialInstance1 && DissolveMaterialInstance2)
+	{
+		DynamicDissolveMaterialInstance1 = UMaterialInstanceDynamic::Create(DissolveMaterialInstance1, this);
+		DynamicDissolveMaterialInstance2 = UMaterialInstanceDynamic::Create(DissolveMaterialInstance2, this);
+
+		GetMesh()->SetMaterial(0, DynamicDissolveMaterialInstance2);
+		GetMesh()->SetMaterial(1, DynamicDissolveMaterialInstance1);
+
+		DynamicDissolveMaterialInstance1->SetScalarParameterValue(TEXT("Dissolve"), -0.55f);
+		DynamicDissolveMaterialInstance1->SetScalarParameterValue(TEXT("Glow"), 200.f);
+		DynamicDissolveMaterialInstance2->SetScalarParameterValue(TEXT("Dissolve"), -0.55f);
+		DynamicDissolveMaterialInstance2->SetScalarParameterValue(TEXT("Glow"), 200.f);
+	}
+
+	StartDissolve();
+
+	//Disable Character Movement
+	GetCharacterMovement()->DisableMovement(); //disables wasd movement
+	GetCharacterMovement()->StopMovementImmediately(); //disables rotation movement
+	if (BlasterPlayerController)
+	{
+		DisableInput(BlasterPlayerController);
+	}
+	// Disable collision
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
 void ABlasterPlayer::EliminationTimerFinished()
@@ -514,6 +548,26 @@ float ABlasterPlayer::CalculateSpeed()
 	FVector Velocity = GetVelocity();
 	Velocity.Z = 0.0f;
 	return Velocity.Size();
+}
+
+void ABlasterPlayer::UpdateDissolveMaterial(float DissolveValue)
+{
+	if (DynamicDissolveMaterialInstance1 && DynamicDissolveMaterialInstance2)
+	{
+		DynamicDissolveMaterialInstance1->SetScalarParameterValue(TEXT("Dissolve"), DissolveValue);
+		DynamicDissolveMaterialInstance2->SetScalarParameterValue(TEXT("Dissolve"), DissolveValue);
+	}
+}
+
+void ABlasterPlayer::StartDissolve()
+{
+	DissolveTrack.BindDynamic(this, &ABlasterPlayer::UpdateDissolveMaterial);
+
+	if (DissolveCurve && DissolveTimeline)
+	{
+		DissolveTimeline->AddInterpFloat(DissolveCurve, DissolveTrack);
+		DissolveTimeline->Play();
+	}
 }
 
 void ABlasterPlayer::SetOverlappingWeapon(AWeapon* Weapon)

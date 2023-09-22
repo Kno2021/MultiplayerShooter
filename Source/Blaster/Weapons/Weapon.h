@@ -27,6 +27,8 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	void ShowPickupWidget(bool bShowWidget);
 	virtual void Fire(const FVector& HitTarget); //passing const reference is more effective than passing just the Fvector because it'll create a copy
+	void Dropped();
+
 
 	//textures for the weapon crosshairs
 	UPROPERTY(EditAnywhere, Category = Crosshairs)
