@@ -16,6 +16,10 @@
 #include "Blaster/PlayerController/BlasterPlayerController.h"
 #include "Blaster/GameMode/BlasterGameMode.h"
 #include "TimerManager.h"
+#include "Kismet/GameplayStatics.h"
+#include "Sound/SoundCue.h"
+#include "Particles/ParticleSystemComponent.h"
+#include "Blaster/PlayerState/BlasterPlayerState.h"
 
 ABlasterPlayer::ABlasterPlayer()
 {
@@ -81,7 +85,8 @@ void ABlasterPlayer::BeginPlay()
 	Super::BeginPlay();
 
 	UpdateHUDHealth();
-
+	//BlasterPlayerState->DisplayDeathMessage(false);
+	//BlasterPlayerState->UpdateDeathMessage("");
 	if (HasAuthority())
 	{
 		OnTakeAnyDamage.AddDynamic(this, &ABlasterPlayer::ReceiveDamage);
@@ -106,6 +111,7 @@ void ABlasterPlayer::Tick(float DeltaTime)
 	}
 	
 	HideCameraIfCharacterClose();
+	PollInit();
 }
 
 void ABlasterPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -229,6 +235,10 @@ void ABlasterPlayer::Eliminated()
 
 void ABlasterPlayer::MulticastEliminated_Implementation()
 {
+	if (BlasterPlayerController)
+	{
+		BlasterPlayerController->SetHUDWeaponAmmo(0);
+	}
 	bEliminated = true;
 	PlayEliminationMontage();
 
@@ -259,6 +269,19 @@ void ABlasterPlayer::MulticastEliminated_Implementation()
 	// Disable collision
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	//spawn elimination bot
+	if (EliminationBotEffect)
+	{
+		FVector SpawnPoint(GetActorLocation().X, GetActorLocation().Y, GetActorLocation().Z + 200.f);
+		FVector forward = GetActorForwardVector();
+
+		EliminationBotComponent = UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), EliminationBotEffect, SpawnPoint - forward * 100.f, GetActorRotation());
+	}
+	if (EliminationBotSound)
+	{
+		UGameplayStatics::SpawnSoundAtLocation(this, EliminationBotSound, GetActorLocation());
+	}
 }
 
 void ABlasterPlayer::EliminationTimerFinished()
@@ -269,7 +292,16 @@ void ABlasterPlayer::EliminationTimerFinished()
 		BlasterGameMode->RequestRespawn(this, Controller);
 	}
 
-	GetMesh()->bPauseAnims = true;
+	//GetMesh()->bPauseAnims = true; // i added this
+}
+
+void ABlasterPlayer::Destroyed()
+{
+	Super::Destroyed();
+	if (EliminationBotComponent)
+	{
+		EliminationBotComponent->DestroyComponent();
+	}
 }
 
 void ABlasterPlayer::UpdateHUDHealth()
@@ -278,6 +310,21 @@ void ABlasterPlayer::UpdateHUDHealth()
 	if (BlasterPlayerController)
 	{
 		BlasterPlayerController->SetHUDHealth(Health, MaxHealth);
+	}
+}
+
+void ABlasterPlayer::PollInit()
+{
+	if (BlasterPlayerState == nullptr)
+	{
+		BlasterPlayerState = GetPlayerState<ABlasterPlayerState>();
+		if (BlasterPlayerState)
+		{
+			BlasterPlayerState->AddToScore(0.f);
+			BlasterPlayerState->AddToDeaths(0);
+			//BlasterPlayerState->DisplayDeathMessage(false);
+			BlasterPlayerState->UpdateDeathMessage(" ");
+		}
 	}
 }
 

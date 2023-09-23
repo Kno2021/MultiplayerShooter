@@ -17,4 +17,8 @@ class BLASTER_API ABlasterGameMode : public AGameMode
 public:
 	virtual void PlayerEliminated(class ABlasterPlayer* EliminatedCharacter, class ABlasterPlayerController* VictimController, ABlasterPlayerController* AttackerController);
 	virtual void RequestRespawn(class ACharacter* EliminatedCharacter, AController* EliminatedController);
+
+private:
+
+	TArray<FString> DeathMessages = TArray<FString>{ "YOU DEAD", "GIT GUD" };
 };

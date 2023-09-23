@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Net/UnrealNetwork.h"
 #include "Weapon.generated.h"
 
 UENUM(BlueprintType)
@@ -25,6 +26,8 @@ public:
 	AWeapon();
 	virtual void Tick(float DeltaTime) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	virtual void OnRep_Owner() override; //needed necause we dont have the owner at the begining or is not replicated in client
+	void SetHUDAmmo();
 	void ShowPickupWidget(bool bShowWidget);
 	virtual void Fire(const FVector& HitTarget); //passing const reference is more effective than passing just the Fvector because it'll create a copy
 	void Dropped();
@@ -92,6 +95,22 @@ private:
 
 	UPROPERTY(EditAnywhere)
 	float ZoomedInterpSpeed = 20.f;
+
+	UPROPERTY(EditAnywhere, ReplicatedUsing = OnRep_Ammo)
+	int32 Ammo;
+
+	UFUNCTION()
+	void OnRep_Ammo();
+
+	void SpendRound();
+
+	UPROPERTY(EditAnywhere)
+	int32 MagCapacity;
+
+	UPROPERTY() //for nullptr
+	class ABlasterPlayer* BlasterOwnerPlayer;
+	UPROPERTY() //for nullptr
+	class ABlasterPlayerController* BlasterOwnerPlayerController;
 
 public:	
 	

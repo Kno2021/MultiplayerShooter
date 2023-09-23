@@ -12,7 +12,6 @@
 #include "Blaster/Blaster.h"
 
 
-
 AProjectile::AProjectile()
 {
 	PrimaryActorTick.bCanEverTick = true;

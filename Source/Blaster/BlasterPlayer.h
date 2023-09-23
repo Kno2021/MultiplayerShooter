@@ -29,6 +29,8 @@ public:
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastEliminated();
 
+	virtual void Destroyed() override;
+
 protected:
 	virtual void BeginPlay() override;
 	void MoveForward(float Value);
@@ -50,6 +52,8 @@ protected:
 	UFUNCTION()
 	void ReceiveDamage(AActor* DamagedActor, float Damage, const UDamageType* DamageType, class AController* InstigatorController, AActor* DamageCauser);
 	void UpdateHUDHealth();
+	//poll for any relevant classes and initialize our Hud
+	void PollInit();
 
 private:
 	UPROPERTY(VisibleAnywhere, Category = Camera)
@@ -112,6 +116,7 @@ private:
 	UFUNCTION()
 	void OnRep_Health();
 
+	UPROPERTY() //for nullptr
 	class ABlasterPlayerController* BlasterPlayerController;
 
 	bool bEliminated = false;
@@ -147,6 +152,20 @@ private:
 	UPROPERTY(EditAnywhere, Category = Elimination)
 	UMaterialInstance* DissolveMaterialInstance2;
 
+	//Elimination Bot
+
+	UPROPERTY(EditAnywhere)
+	UParticleSystem* EliminationBotEffect;
+
+	UPROPERTY(VisibleAnywhere)
+	UParticleSystemComponent* EliminationBotComponent;
+
+	UPROPERTY(EditAnywhere)
+	class USoundCue* EliminationBotSound;
+
+	UPROPERTY() //for nullptr
+	class ABlasterPlayerState* BlasterPlayerState;
+
 public:	
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAcces = "true"))
@@ -163,4 +182,6 @@ public:
 	FORCEINLINE UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 	FORCEINLINE bool ShouldRotateRootBone() const { return bRotateRootBone; }
 	FORCEINLINE bool IsEliminated() const { return bEliminated; }
+	FORCEINLINE float GetHealth() const { return Health; }
+	FORCEINLINE float GetMaxHealth() const { return MaxHealth; }
 };
