@@ -106,7 +106,7 @@ void AWeapon::SetHUDAmmo()
 
 void AWeapon::SpendRound()
 {
-	Ammo--;
+	Ammo = FMath::Clamp(Ammo - 1, 0, MagCapacity);
 	SetHUDAmmo();
 }
 
@@ -128,8 +128,6 @@ void AWeapon::OnRep_Owner()
 		SetHUDAmmo();
 	}
 }
-
-
 
 void AWeapon::SetWeaponState(EWeaponState State)
 {
@@ -154,6 +152,7 @@ void AWeapon::SetWeaponState(EWeaponState State)
 		break;
 	}
 }
+
 
 //rep notifier called when weapon state is changed. To propagate to clients
 void AWeapon::OnRep_WeaponState()
@@ -218,5 +217,10 @@ void AWeapon::Dropped()
 	SetOwner(nullptr);
 	BlasterOwnerPlayer = nullptr;
 	BlasterOwnerPlayerController = nullptr;
+}
+
+bool AWeapon::IsEmpty()
+{
+	return Ammo <= 0;
 }
 

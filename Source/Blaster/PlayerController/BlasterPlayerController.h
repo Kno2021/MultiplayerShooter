@@ -20,6 +20,7 @@ public:
 	void SetHUDDeaths(int32 Deaths);
 	void SetHUDDeathMessage(FString DeathMessage);
 	void SetHUDWeaponAmmo(int32 Ammo);
+	void SetHUDCarriedAmmo(int32 Ammo);
 	//void DisplayDeathMessage(bool Display);
 	virtual void OnPossess(APawn* InPawn) override;
 protected:

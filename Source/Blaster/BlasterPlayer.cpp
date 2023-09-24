@@ -20,6 +20,7 @@
 #include "Sound/SoundCue.h"
 #include "Particles/ParticleSystemComponent.h"
 #include "Blaster/PlayerState/BlasterPlayerState.h"
+#include "Blaster/Weapons/WeaponTypes.h"
 
 ABlasterPlayer::ABlasterPlayer()
 {
@@ -142,6 +143,7 @@ void ABlasterPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 	PlayerInputComponent->BindAction("Aim", IE_Released, this, &ABlasterPlayer::AimButtonReleased);
 	PlayerInputComponent->BindAction("Fire", IE_Pressed, this, &ABlasterPlayer::FireButtonPressed);
 	PlayerInputComponent->BindAction("Fire", IE_Released, this, &ABlasterPlayer::FireButtonReleased);
+	PlayerInputComponent->BindAction("Reload", IE_Pressed, this, &ABlasterPlayer::ReloadButtonPressed);
 }
 
 void ABlasterPlayer::PostInitializeComponents()
@@ -164,6 +166,29 @@ void ABlasterPlayer::PlayFireMontage(bool bAiming)
 		AnimInstance->Montage_Play(FireWeaponMontage);
 		FName SectionName;
 		SectionName = bAiming ? FName("RifleAim") : FName("RifleHip");
+		AnimInstance->Montage_JumpToSection(SectionName);
+	}
+}
+
+void ABlasterPlayer::PlayReloadMontage()
+{
+	if (Kombat == nullptr || Kombat->EquippedWeapon == nullptr) return;
+
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+	if (AnimInstance && ReloadMontage)
+	{
+		AnimInstance->Montage_Play(ReloadMontage);
+		FName SectionName;
+		
+		switch (Kombat->EquippedWeapon->GetWeaponType())
+		{
+		case EWeaponType::EWT_AssaultRifle:
+			SectionName = FName("Rifle");
+			break;
+		default:
+			break;
+		}
+		
 		AnimInstance->Montage_JumpToSection(SectionName);
 	}
 }
@@ -418,6 +443,14 @@ void ABlasterPlayer::CrouchButtonPressed()
 	Crouch();
 }
 
+void ABlasterPlayer::ReloadButtonPressed()
+{
+	if (Kombat)
+	{
+		Kombat->Reload();
+	}
+}
+
 void ABlasterPlayer::AimButtonPressed()
 {
 	if (Kombat && Kombat->EquippedWeapon != nullptr)
@@ -655,5 +688,12 @@ FVector ABlasterPlayer::GetHitTarget() const
 	if(Kombat == nullptr) return FVector();
 
 	return Kombat->HitTarget;
+}
+
+ECombatState ABlasterPlayer::GetCombatState() const
+{
+	if (Kombat == nullptr) return ECombatState::ECS_MAX;
+
+	return Kombat->KombatState;
 }
 

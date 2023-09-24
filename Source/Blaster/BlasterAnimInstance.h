@@ -73,13 +73,13 @@ private:
 	UPROPERTY(BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAccess = " true"))
 	ETurningInPlace TurningInPlace;
 
-	UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = " true"))
+	UPROPERTY(BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAccess = " true"))
 	FRotator RightHandRotation;
 
 	UPROPERTY(BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAccess = " true"))
 	bool bLocallyControlled;
 
-	UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = " true"))
+	UPROPERTY(BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAccess = " true"))
 	bool bRotateRootBone;
 
 	UPROPERTY(EditAnywhere, Category = "WeaponRotationCorrection")
@@ -91,6 +91,10 @@ private:
 	UPROPERTY(EditAnywhere, Category = "WeaponRotationCorrection")
 	float RightHandRotationPitch = -1.f;
 
-	UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = " true"))
+	UPROPERTY(BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAccess = " true"))
 	bool bEliminated;
+
+	UPROPERTY(BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAccess = " true"))
+	bool bUseFABRIK;
+
 };
