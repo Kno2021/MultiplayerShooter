@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "Blaster/Weapons/WeaponTypes.h"
 #include "BlasterPlayerController.generated.h"
 
 /**
@@ -21,6 +22,7 @@ public:
 	void SetHUDDeathMessage(FString DeathMessage);
 	void SetHUDWeaponAmmo(int32 Ammo);
 	void SetHUDCarriedAmmo(int32 Ammo);
+	void SetHUDWeaponType(EWeaponType WeaponType);
 	//void DisplayDeathMessage(bool Display);
 	virtual void OnPossess(APawn* InPawn) override;
 protected:

@@ -29,10 +29,11 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void OnRep_Owner() override; //needed necause we dont have the owner at the begining or is not replicated in client
 	void SetHUDAmmo();
+	void SetHUDWeaponType(EWeaponType Type);
 	void ShowPickupWidget(bool bShowWidget);
 	virtual void Fire(const FVector& HitTarget); //passing const reference is more effective than passing just the Fvector because it'll create a copy
 	void Dropped();
-
+	void AddAmmo(int32 AmmoToAdd);
 
 	//textures for the weapon crosshairs
 	UPROPERTY(EditAnywhere, Category = Crosshairs)
@@ -50,13 +51,15 @@ public:
 	UPROPERTY(EditAnywhere, Category = Crosshairs)
 	UTexture2D* CrosshairsBottom;
 
-
 	//automatic fire
 	UPROPERTY(EditAnywhere, Category = Combat)
 	float FireDelay = 0.15f;
 
 	UPROPERTY(EditAnywhere, Category = Combat)
 	bool bAutomatic = true;
+
+	UPROPERTY(EditAnywhere)
+	class USoundCue* EquipSound;
 
 protected:
 	virtual void BeginPlay() override;
@@ -125,4 +128,6 @@ public:
 	FORCEINLINE float GetZoomedInterpSpeed() const { return ZoomedInterpSpeed; }
 	bool IsEmpty();
 	FORCEINLINE EWeaponType GetWeaponType() const { return WeaponType; }
+	FORCEINLINE int32 GetAmmo() const { return Ammo; }
+	FORCEINLINE int32 GetMagCapacity() const { return MagCapacity; }
 };

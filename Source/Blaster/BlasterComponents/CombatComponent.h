@@ -57,6 +57,8 @@ protected:
 
 	void HandleReload();
 
+	int32 AmountToReload();
+
 private:
 
 	UPROPERTY() //for nullptr
@@ -138,6 +140,8 @@ private:
 
 	UFUNCTION()
 	void OnRep_KombatState();
+
+	void UpdateAmmoValues();
 
 public:	
 	

@@ -104,6 +104,19 @@ void AWeapon::SetHUDAmmo()
 	}
 }
 
+void AWeapon::SetHUDWeaponType(EWeaponType Type)
+{
+	BlasterOwnerPlayer = BlasterOwnerPlayer == nullptr ? Cast<ABlasterPlayer>(GetOwner()) : BlasterOwnerPlayer;
+	if (BlasterOwnerPlayer)
+	{
+		BlasterOwnerPlayerController = BlasterOwnerPlayerController == nullptr ? Cast<ABlasterPlayerController>(BlasterOwnerPlayer->Controller) : BlasterOwnerPlayerController;
+		if (BlasterOwnerPlayerController)
+		{
+			BlasterOwnerPlayerController->SetHUDWeaponType(Type);
+		}
+	}
+}
+
 void AWeapon::SpendRound()
 {
 	Ammo = FMath::Clamp(Ammo - 1, 0, MagCapacity);
@@ -126,6 +139,7 @@ void AWeapon::OnRep_Owner()
 	else 
 	{
 		SetHUDAmmo();
+		SetHUDWeaponType(WeaponType);
 	}
 }
 
@@ -140,6 +154,7 @@ void AWeapon::SetWeaponState(EWeaponState State)
 		WeaponMesh->SetSimulatePhysics(false);
 		WeaponMesh->SetEnableGravity(false);
 		WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		SetHUDWeaponType(WeaponType);
 		break;
 	case EWeaponState::EWS_Dropped:
 		if (HasAuthority())
@@ -149,6 +164,7 @@ void AWeapon::SetWeaponState(EWeaponState State)
 		WeaponMesh->SetSimulatePhysics(true);
 		WeaponMesh->SetEnableGravity(true);
 		WeaponMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+		SetHUDWeaponType(EWeaponType::EWT_MAX);
 		break;
 	}
 }
@@ -211,12 +227,30 @@ void AWeapon::Fire(const FVector& HitTaget)
 
 void AWeapon::Dropped()
 {
+	
+	BlasterOwnerPlayer = BlasterOwnerPlayer == nullptr ? Cast<ABlasterPlayer>(GetOwner()) : BlasterOwnerPlayer;
+	if (BlasterOwnerPlayer)
+	{
+		BlasterOwnerPlayerController = BlasterOwnerPlayerController == nullptr ? Cast<ABlasterPlayerController>(BlasterOwnerPlayer->Controller) : BlasterOwnerPlayerController;
+		if (BlasterOwnerPlayerController)
+		{
+			BlasterOwnerPlayerController->SetHUDWeaponType(EWeaponType::EWT_MAX);
+		}
+	}
+
+
 	SetWeaponState(EWeaponState::EWS_Dropped);
 	FDetachmentTransformRules DetachRules(EDetachmentRule::KeepWorld, true);
 	WeaponMesh->DetachFromComponent(DetachRules);
 	SetOwner(nullptr);
 	BlasterOwnerPlayer = nullptr;
 	BlasterOwnerPlayerController = nullptr;
+}
+
+void AWeapon::AddAmmo(int32 AmmoToAdd)
+{
+	Ammo = FMath::Clamp(Ammo + AmmoToAdd, 0, MagCapacity);
+	SetHUDAmmo();
 }
 
 bool AWeapon::IsEmpty()

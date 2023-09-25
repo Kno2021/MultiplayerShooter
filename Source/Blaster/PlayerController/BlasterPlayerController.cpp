@@ -101,6 +101,27 @@ void ABlasterPlayerController::SetHUDCarriedAmmo(int32 Ammo)
 	}
 }
 
+void ABlasterPlayerController::SetHUDWeaponType(EWeaponType WeaponType)
+{
+	BlasterHUD = BlasterHUD == nullptr ? Cast<ABlasterHUD>(GetHUD()) : BlasterHUD;
+	bool bHUDValid = BlasterHUD && BlasterHUD->CharacterOverlay && BlasterHUD->CharacterOverlay->WeaponType;
+
+	if (bHUDValid)
+	{
+		//FString AmmoText = FString::Printf(TEXT("%d"), Ammo);
+		if (WeaponType != EWeaponType::EWT_MAX)
+		{
+			BlasterHUD->CharacterOverlay->WeaponType->SetText(UEnum::GetDisplayValueAsText(WeaponType));
+
+		}
+		else 
+		{
+			FString test = " ";
+			BlasterHUD->CharacterOverlay->WeaponType->SetText(FText::FromString(test));
+		}
+	}
+}
+
 //void ABlasterPlayerController::DisplayDeathMessage(bool Display)
 //{
 //	BlasterHUD = BlasterHUD == nullptr ? Cast<ABlasterHUD>(GetHUD()) : BlasterHUD;
