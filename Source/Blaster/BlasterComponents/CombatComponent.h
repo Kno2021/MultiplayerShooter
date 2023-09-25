@@ -28,6 +28,8 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void FinishReloading();
 
+	void SetFireButtonPressed(bool Pressed);
+
 protected:
 	virtual void BeginPlay() override;
 	void SetAiming(bool bIsAiming);

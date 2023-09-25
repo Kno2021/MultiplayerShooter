@@ -33,12 +33,16 @@ public:
 
 	virtual void Destroyed() override;
 
+	UPROPERTY(Replicated)
+	bool bDisableGameplay = false;
+
 protected:
 	virtual void BeginPlay() override;
 	void MoveForward(float Value);
 	void MoveRight(float Value);
 	void Turn(float Value);
 	void LookUp(float Value);
+	void RotateInPlace(float DeltaTime);
 	void EquipButtonPressed();
 	void CrouchButtonPressed();
 	void ReloadButtonPressed();
@@ -191,4 +195,6 @@ public:
 	FORCEINLINE float GetHealth() const { return Health; }
 	FORCEINLINE float GetMaxHealth() const { return MaxHealth; }
 	ECombatState GetCombatState() const;
+	FORCEINLINE UCombatComponent* GetKombatComponent() { return Kombat; }
+	FORCEINLINE bool GetDisableGameplay() const { return bDisableGameplay; }
 };

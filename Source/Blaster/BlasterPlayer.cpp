@@ -70,6 +70,7 @@ void ABlasterPlayer::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 	//DOREPLIFETIME(ABlasterPlayer, OverlappingWeapon);
 	DOREPLIFETIME_CONDITION(ABlasterPlayer, OverlappingWeapon, COND_OwnerOnly); //replication with condition only to pawn owner
 	DOREPLIFETIME(ABlasterPlayer, Health);
+	DOREPLIFETIME(ABlasterPlayer, bDisableGameplay);
 }
 
 
@@ -97,6 +98,20 @@ void ABlasterPlayer::BeginPlay()
 void ABlasterPlayer::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	RotateInPlace(DeltaTime);
+	HideCameraIfCharacterClose();
+	PollInit();
+}
+
+void ABlasterPlayer::RotateInPlace(float DeltaTime)
+{
+	if (bDisableGameplay) 
+	{
+		bUseControllerRotationYaw = false;
+		TurningInPlace = ETurningInPlace::ETIP_NotTurning;
+		return;
+	}
 	if (GetLocalRole() > ENetRole::ROLE_SimulatedProxy && IsLocallyControlled()) //lesson 92
 	{
 		AimOffset(DeltaTime);
@@ -110,9 +125,6 @@ void ABlasterPlayer::Tick(float DeltaTime)
 		}
 		CalculateAO_Pitch();
 	}
-	
-	HideCameraIfCharacterClose();
-	PollInit();
 }
 
 void ABlasterPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -290,7 +302,7 @@ void ABlasterPlayer::MulticastEliminated_Implementation()
 	GetCharacterMovement()->StopMovementImmediately(); //disables rotation movement
 	if (BlasterPlayerController)
 	{
-		DisableInput(BlasterPlayerController);
+		bDisableGameplay = true;
 	}
 	// Disable collision
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -328,6 +340,10 @@ void ABlasterPlayer::Destroyed()
 	{
 		EliminationBotComponent->DestroyComponent();
 	}
+	if (Kombat && Kombat->EquippedWeapon)
+	{
+		Kombat->EquippedWeapon->Destroy();
+	}
 }
 
 void ABlasterPlayer::UpdateHUDHealth()
@@ -356,6 +372,7 @@ void ABlasterPlayer::PollInit()
 
 void ABlasterPlayer::MoveForward(float Value)
 {
+	if (bDisableGameplay) return;
 	if ((Controller != nullptr) && (Value != 0.0f))
 	{
 		// find out which way is forward
@@ -370,6 +387,7 @@ void ABlasterPlayer::MoveForward(float Value)
 
 void ABlasterPlayer::MoveRight(float Value)
 {
+	if (bDisableGameplay) return;
 	if ((Controller != nullptr) && (Value != 0.0f))
 	{
 		// find out which way is right
@@ -413,6 +431,7 @@ void ABlasterPlayer::OnRep_OverlappingWeapon(AWeapon* LastWeapon)
 
 void ABlasterPlayer::EquipButtonPressed()
 {
+	if (bDisableGameplay) return;
 	if (Kombat )
 	{
 		if (HasAuthority())
@@ -437,6 +456,7 @@ void ABlasterPlayer::ServerEquipButtonPressed_Implementation()
 
 void ABlasterPlayer::CrouchButtonPressed()
 {
+	if (bDisableGameplay) return;
 	if (bIsCrouched)
 	{
 		UnCrouch(); return;
@@ -446,6 +466,7 @@ void ABlasterPlayer::CrouchButtonPressed()
 
 void ABlasterPlayer::ReloadButtonPressed()
 {
+	if (bDisableGameplay) return;
 	if (Kombat)
 	{
 		Kombat->Reload();
@@ -454,6 +475,7 @@ void ABlasterPlayer::ReloadButtonPressed()
 
 void ABlasterPlayer::AimButtonPressed()
 {
+	if (bDisableGameplay) return;
 	if (Kombat && Kombat->EquippedWeapon != nullptr)
 	{
 		Kombat->SetAiming(true);
@@ -462,6 +484,7 @@ void ABlasterPlayer::AimButtonPressed()
 
 void ABlasterPlayer::AimButtonReleased()
 {
+	if (bDisableGameplay) return;
 	if (Kombat)
 	{
 		Kombat->SetAiming(false);
@@ -553,6 +576,7 @@ void ABlasterPlayer::SimProxiesTurn()
 
 void ABlasterPlayer::Jump()
 {
+	if (bDisableGameplay) return;
 	if (bIsCrouched)
 	{
 		UnCrouch();
@@ -565,6 +589,7 @@ void ABlasterPlayer::Jump()
 
 void ABlasterPlayer::FireButtonPressed()
 {
+	if (bDisableGameplay) return;
 	if (Kombat)
 	{
 		Kombat->FireButtonPressed(true);
@@ -573,6 +598,7 @@ void ABlasterPlayer::FireButtonPressed()
 
 void ABlasterPlayer::FireButtonReleased()
 {
+	if (bDisableGameplay) return;
 	if (Kombat)
 	{
 		Kombat->FireButtonPressed(false);

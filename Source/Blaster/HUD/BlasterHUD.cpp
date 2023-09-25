@@ -5,21 +5,52 @@
 #include "Engine/Texture2D.h"
 #include "GameFramework/PlayerController.h"
 #include "CharacterOverlay.h"
+#include "Announcement.h"
+
+
 
 void ABlasterHUD::BeginPlay()
 {
 	Super::BeginPlay();
 
-	AddCharacterOverlay();
+	//AddCharacterOverlay();
+
+	APlayerController* PlayerController = GetOwningPlayerController();
+	if (PlayerController && CharacterOverlayClass /*&& AnnouncementClass*/)
+	{
+		CharacterOverlay = CreateWidget<UCharacterOverlay>(PlayerController, CharacterOverlayClass);
+		//CharacterOverlay->AddToViewport();
+		/*if(!Announcement)
+			Announcement = CreateWidget<UAnnouncement>(PlayerController, AnnouncementClass);*/
+	}
 }
 
 void ABlasterHUD::AddCharacterOverlay()
 {
-	APlayerController* PlayerController = GetOwningPlayerController();
+	/*APlayerController* PlayerController = GetOwningPlayerController();
 	if (PlayerController && CharacterOverlayClass)
 	{
 		CharacterOverlay = CreateWidget<UCharacterOverlay>(PlayerController, CharacterOverlayClass);
 		CharacterOverlay->AddToViewport();
+	}*/
+	if (CharacterOverlay)
+	{
+		CharacterOverlay->AddToViewport();
+	}
+}
+
+void ABlasterHUD::AddAnnouncement()
+{
+	/*if (Announcement)
+	{
+		Announcement->AddToViewport();
+		return;
+	}*/
+	APlayerController* PlayerController = GetOwningPlayerController();
+	if (PlayerController && AnnouncementClass && !Announcement)
+	{
+		Announcement = CreateWidget<UAnnouncement>(PlayerController, AnnouncementClass);
+		Announcement->AddToViewport();
 	}
 }
 

@@ -282,6 +282,11 @@ void UCombatComponent::FinishReloading()
 	}
 }
 
+void UCombatComponent::SetFireButtonPressed(bool Pressed)
+{
+	bFireButtonPressed = Pressed;
+}
+
 void UCombatComponent::UpdateAmmoValues()
 {
 	if (Character == nullptr || EquippedWeapon == nullptr) return;

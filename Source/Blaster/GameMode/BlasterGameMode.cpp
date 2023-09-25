@@ -8,6 +8,70 @@
 #include "GameFramework/PlayerStart.h"
 #include "Blaster/PlayerState/BlasterPlayerState.h"
 
+namespace MatchState
+{
+	const FName Cooldown = FName("Cooldown");
+}
+
+ABlasterGameMode::ABlasterGameMode()
+{
+	bDelayedStart = true;
+
+}
+
+void ABlasterGameMode::BeginPlay()
+{
+	LevelStartingTime = GetWorld()->GetTimeSeconds();
+}
+
+
+void ABlasterGameMode::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+	if (MatchState == MatchState::WaitingToStart)
+	{
+		CountdownTime = WarmupTime - GetWorld()->GetTimeSeconds() + LevelStartingTime;
+
+		if (CountdownTime <= 0.f)
+		{
+			StartMatch(); //inherited function from AGameMode.h
+		}
+	}
+	else if (MatchState == MatchState::InProgress)
+	{
+		CountdownTime = WarmupTime + MatchTime - GetWorld()->GetTimeSeconds() + LevelStartingTime;
+		if (CountdownTime <= 0.f)
+		{
+			SetMatchState(MatchState::Cooldown);
+		}
+	}
+	else if (MatchState == MatchState::Cooldown)
+	{
+		CountdownTime = CooldownTime + WarmupTime + MatchTime - GetWorld()->GetTimeSeconds() + LevelStartingTime;
+		if (CountdownTime <= 0.f)
+		{
+			RestartGame(); //HERE MAYBE TO NEXT MAP OR SOMETHING>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+		}
+	}
+}
+
+void ABlasterGameMode::OnMatchStateSet()
+{
+	Super::OnMatchStateSet();
+
+	for (FConstPlayerControllerIterator i = GetWorld()->GetPlayerControllerIterator(); i; ++i)
+	{
+		ABlasterPlayerController* BlasterPlayer = Cast<ABlasterPlayerController>(*i);
+		if (BlasterPlayer)
+		{
+			BlasterPlayer->OnMatchStateSet(MatchState);
+		}
+	}
+	
+}
+
+
 void ABlasterGameMode::PlayerEliminated(ABlasterPlayer* EliminatedCharacter, ABlasterPlayerController* VictimController, ABlasterPlayerController* AttackerController)
 {
 	ABlasterPlayerState* AttackerPlayerState = AttackerController ? Cast<ABlasterPlayerState>(AttackerController->PlayerState) : nullptr;
@@ -79,3 +143,5 @@ void ABlasterGameMode::RequestRespawn(ACharacter* EliminatedCharacter, AControll
 		RestartPlayerAtPlayerStart(EliminatedController, PlayerStarts[spawnFound ? indexSelected : tempIndex]);
 	}
 }
+
+
