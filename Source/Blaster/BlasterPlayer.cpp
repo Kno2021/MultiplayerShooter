@@ -48,7 +48,7 @@ ABlasterPlayer::ABlasterPlayer()
 
 	Kombat = CreateDefaultSubobject<UCombatComponent>(TEXT("KombatComponent"));
 	Kombat->SetIsReplicated(true);
-
+	
 	GetCharacterMovement()->NavAgentProps.bCanCrouch = true;
 	GetCharacterMovement()->RotationRate = FRotator(0.f, 0.f, 700.f);
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECollisionChannel::ECC_Camera, ECollisionResponse::ECR_Ignore);
@@ -304,6 +304,10 @@ void ABlasterPlayer::MulticastEliminated_Implementation()
 	{
 		bDisableGameplay = true;
 	}
+	if (Kombat)
+	{
+		Kombat->SetFireButtonPressed(false);
+	}
 	// Disable collision
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -340,7 +344,9 @@ void ABlasterPlayer::Destroyed()
 	{
 		EliminationBotComponent->DestroyComponent();
 	}
-	if (Kombat && Kombat->EquippedWeapon)
+	ABlasterGameMode* BlasterGameMode = Cast<ABlasterGameMode>(UGameplayStatics::GetGameMode(this));
+	bool bMatchNotInProgress = BlasterGameMode && BlasterGameMode->GetMatchState() != MatchState::InProgress;
+	if (Kombat && Kombat->EquippedWeapon && bMatchNotInProgress)
 	{
 		Kombat->EquippedWeapon->Destroy();
 	}

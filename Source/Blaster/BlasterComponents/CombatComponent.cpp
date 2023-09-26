@@ -18,7 +18,7 @@
 UCombatComponent::UCombatComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
-
+	
 	BaseWalkSpeed = 600.f;
 	AimWalkSpeed = 450.f;
 
@@ -105,20 +105,6 @@ bool UCombatComponent::CanFire()
 {
 	if (EquippedWeapon == nullptr) return false;
 	return !EquippedWeapon->IsEmpty() && bCanFire && KombatState == ECombatState::ECS_Unoccupied;
-}
-
-void UCombatComponent::OnRep_CarriedAmmo()
-{
-	Controller = Controller == nullptr ? Cast<ABlasterPlayerController>(Character->Controller) : Controller;
-	if (Controller)
-	{
-		Controller->SetHUDCarriedAmmo(CarriedAmmo);
-	}
-}
-
-void UCombatComponent::InitializeCarriedAmmo()
-{
-	//CarriedAmmoMap.Emplace(EWeaponType::EWT_AssaultRifle, StartingARAmmo);
 }
 
 
@@ -231,6 +217,14 @@ void UCombatComponent::OnRep_EquippedWeapon()
 	}
 }
 
+void UCombatComponent::OnRep_CarriedAmmo()
+{
+	Controller = Controller == nullptr ? Cast<ABlasterPlayerController>(Character->Controller) : Controller;
+	if (Controller)
+	{
+		Controller->SetHUDCarriedAmmo(CarriedAmmo);
+	}
+}
 
 void UCombatComponent::Reload()
 {
@@ -484,4 +478,10 @@ void UCombatComponent::ServerSetAiming_Implementation(bool bIsAiming)
 	}
 }
 
+
+void UCombatComponent::InitializeCarriedAmmo()
+{
+	//CarriedAmmoMap.Emplace(EWeaponType::EWT_AssaultRifle, StartingARAmmo);
+	//CarriedAmmoMap.Emplace(EWeaponType::EWT_RocketLauncher, StartingRocketAmmo);
+}
 

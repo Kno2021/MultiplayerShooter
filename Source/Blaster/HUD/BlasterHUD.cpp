@@ -15,28 +15,32 @@ void ABlasterHUD::BeginPlay()
 
 	//AddCharacterOverlay();
 
-	APlayerController* PlayerController = GetOwningPlayerController();
-	if (PlayerController && CharacterOverlayClass /*&& AnnouncementClass*/)
-	{
-		CharacterOverlay = CreateWidget<UCharacterOverlay>(PlayerController, CharacterOverlayClass);
-		//CharacterOverlay->AddToViewport();
-		/*if(!Announcement)
-			Announcement = CreateWidget<UAnnouncement>(PlayerController, AnnouncementClass);*/
-	}
+	//APlayerController* PlayerController = GetOwningPlayerController();
+	//if (PlayerController && CharacterOverlayClass /*&& AnnouncementClass*/)
+	//{
+	//	CharacterOverlay = CreateWidget<UCharacterOverlay>(PlayerController, CharacterOverlayClass);
+	//	//CharacterOverlay->AddToViewport();
+	//	/*if(!Announcement)
+	//		Announcement = CreateWidget<UAnnouncement>(PlayerController, AnnouncementClass);*/
+	//}
 }
 
 void ABlasterHUD::AddCharacterOverlay()
 {
-	/*APlayerController* PlayerController = GetOwningPlayerController();
+	APlayerController* PlayerController = GetOwningPlayerController();
 	if (PlayerController && CharacterOverlayClass)
 	{
 		CharacterOverlay = CreateWidget<UCharacterOverlay>(PlayerController, CharacterOverlayClass);
 		CharacterOverlay->AddToViewport();
-	}*/
+	}
+	/*if (!CharacterOverlay && PlayerController && CharacterOverlayClass)
+	{
+		CharacterOverlay = CreateWidget<UCharacterOverlay>(PlayerController, CharacterOverlayClass);
+	}
 	if (CharacterOverlay)
 	{
 		CharacterOverlay->AddToViewport();
-	}
+	}*/
 }
 
 void ABlasterHUD::AddAnnouncement()
