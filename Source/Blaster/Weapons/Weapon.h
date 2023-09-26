@@ -93,6 +93,9 @@ private:
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<class ACasing> CasingClass;
 
+	UPROPERTY(EditDefaultsOnly, meta = (AllowPrivateAcces = "true"))
+	float CrosshairsSpreadFactor = 1.0f;
+
 	//zoom FOV while aiming
 	UPROPERTY(EditAnywhere)
 	float ZoomedFOV = 30.f;
@@ -130,4 +133,5 @@ public:
 	FORCEINLINE EWeaponType GetWeaponType() const { return WeaponType; }
 	FORCEINLINE int32 GetAmmo() const { return Ammo; }
 	FORCEINLINE int32 GetMagCapacity() const { return MagCapacity; }
+	FORCEINLINE float GetShootingSpreadFactor() { return CrosshairsSpreadFactor; }
 };

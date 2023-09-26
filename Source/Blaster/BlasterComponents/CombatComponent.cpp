@@ -18,7 +18,7 @@
 UCombatComponent::UCombatComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
-	
+	SetIsReplicated(true);
 	BaseWalkSpeed = 600.f;
 	AimWalkSpeed = 450.f;
 
@@ -94,7 +94,7 @@ void UCombatComponent::Fire()
 
 		if (EquippedWeapon)
 		{
-			CrosshairShootingFactor = ShootingSpreadFactor; //maybe this variable could be in weapon
+			CrosshairShootingFactor = EquippedWeapon->GetShootingSpreadFactor(); //ShootingSpreadFactor; //maybe this variable could be in weapon
 		}
 
 		StartFireTimer();
@@ -426,7 +426,7 @@ void UCombatComponent::SetHUDCrosshairs(float DeltaTime)
 				CrosshairAimFactor = FMath::FInterpTo(CrosshairAimFactor, 0.f, DeltaTime, 30.f);
 			}
 
-			CrosshairShootingFactor = FMath::FInterpTo(CrosshairShootingFactor, 0.f, DeltaTime, 40.f);
+			CrosshairShootingFactor = FMath::FInterpTo(CrosshairShootingFactor, 0.f, DeltaTime, 20.f);
 
 			HUDPackage.CrosshairSpread = CrosshairVelocityFactor + CrosshairInAirFactor + CrosshairAimFactor + 0.5f + CrosshairShootingFactor; //0.5f is baseline spread
 
@@ -483,5 +483,8 @@ void UCombatComponent::InitializeCarriedAmmo()
 {
 	//CarriedAmmoMap.Emplace(EWeaponType::EWT_AssaultRifle, StartingARAmmo);
 	//CarriedAmmoMap.Emplace(EWeaponType::EWT_RocketLauncher, StartingRocketAmmo);
+	//CarriedAmmoMap.Emplace(EWeaponType::EWT_Pistol, StartingPistolAmmo);
+	//CarriedAmmoMap.Emplace(EWeaponType::EWT_SubMachineGun, StartingSMGAmmo);
+	//CarriedAmmoMap.Emplace(EWeaponType::EWT_Shotgun, StartingShotgunAmmo);
 }
 
