@@ -152,6 +152,7 @@ void UCombatComponent::EquipWeapon(AWeapon* WeaponToEquip)
 
 	if (EquippedWeapon)
 	{
+		if (KombatState == ECombatState::ECS_Reloading) return;
 		EquippedWeapon->Dropped();
 	}
 	EquippedWeapon = WeaponToEquip;
@@ -384,7 +385,7 @@ void UCombatComponent::SetHUDCrosshairs(float DeltaTime)
 
 		if (HUD)
 		{
-			if (EquippedWeapon)
+			if (EquippedWeapon && bShowCrosshairs)
 			{
 				HUDPackage.CrosshairsCenter = EquippedWeapon->CrosshairsCenter;
 				HUDPackage.CrosshairsLeft = EquippedWeapon->CrosshairsLeft;
@@ -456,15 +457,22 @@ void UCombatComponent::InterpFOV(float DeltaTime)
 
 void UCombatComponent::SetAiming(bool bIsAiming)
 {
+	if (Character == nullptr || EquippedWeapon == nullptr) return;
+
 	bAiming = bIsAiming;
-	/*if (!Character->HasAuthority()) this was not needed because it will be executed on the server
-	{
-		ServerSetAiming(bIsAiming);
-	}*/
 	ServerSetAiming(bIsAiming);
+
 	if (Character)
 	{
 		Character->GetCharacterMovement()->MaxWalkSpeed = bIsAiming ? AimWalkSpeed : BaseWalkSpeed;
+	}
+	if (Character->IsLocallyControlled())
+	{
+		if (EquippedWeapon->GetWeaponType() == EWeaponType::EWT_SniperRifle)
+		{
+			Character->ShowSniperScopeWidget(bIsAiming);
+			bShowCrosshairs = !bIsAiming;
+		}
 	}
 }
 
@@ -486,5 +494,7 @@ void UCombatComponent::InitializeCarriedAmmo()
 	//CarriedAmmoMap.Emplace(EWeaponType::EWT_Pistol, StartingPistolAmmo);
 	//CarriedAmmoMap.Emplace(EWeaponType::EWT_SubMachineGun, StartingSMGAmmo);
 	//CarriedAmmoMap.Emplace(EWeaponType::EWT_Shotgun, StartingShotgunAmmo);
+	//CarriedAmmoMap.Emplace(EWeaponType::EWT_SniperRifle, StartingSniperAmmo);
+	//CarriedAmmoMap.Emplace(EWeaponType::EWT_GrenadeLauncher, StartingGrenadeLauncherAmmo);
 }
 

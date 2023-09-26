@@ -20,13 +20,53 @@ void AShotgun::Fire(const FVector& HitTarget)
 	{
 		FTransform SocketTransform = MuzzleFlashSocket->GetSocketTransform(GetWeaponMesh());
 		FVector Start = SocketTransform.GetLocation();
+		TMap<ABlasterPlayer*, uint32> HitMap;
+
 		for (uint32 i = 0; i < NumberOfPellets; i++)
 		{
-			FVector End = TraceEndWithScatter(Start, HitTarget);
+			FHitResult FireHit;
+			WeaponTraceHit(Start, HitTarget, FireHit);
 
+			ABlasterPlayer* BlasterCharacter = Cast<ABlasterPlayer>(FireHit.GetActor());
+			if (BlasterCharacter && HasAuthority() && InstigatorController)
+			{
+				//this is for to apply dagame only in the server.
+				
+				if (HitMap.Contains(BlasterCharacter))
+				{
+					HitMap[BlasterCharacter]++;
+				}
+				else 
+				{
+					HitMap.Emplace(BlasterCharacter, 1);
+				}
+			}
+
+			if (ImpactParticles)
+			{
+				UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), ImpactParticles, FireHit.ImpactPoint, FireHit.ImpactNormal.Rotation());
+			}
+
+			if (HitSound)
+			{
+				UGameplayStatics::PlaySoundAtLocation(this, HitSound, FireHit.ImpactPoint, 0.5f, FMath::FRandRange(-0.5f, 0.5f));
+			}
 		}
 
-
+		for (auto HitPair : HitMap)
+		{
+			if (HitPair.Key && HasAuthority() && InstigatorController)
+			{
+				UGameplayStatics::ApplyDamage(HitPair.Key, Damage * HitPair.Value, InstigatorController, this, UDamageType::StaticClass());
+			}
+		}
+		/*for each (auto HitPair in HitMap)
+		{
+			if (HitPair.Key && HasAuthority() && InstigatorController)
+			{
+				UGameplayStatics::ApplyDamage(HitPair.Key, Damage * HitPair.Value, InstigatorController, this, UDamageType::StaticClass());
+			}
+		}*/
 		
 	}
 }

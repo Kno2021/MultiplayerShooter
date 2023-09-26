@@ -209,6 +209,12 @@ void ABlasterPlayer::PlayReloadMontage()
 		case EWeaponType::EWT_Shotgun:
 			SectionName = FName("Rifle");
 			break;
+		case EWeaponType::EWT_SniperRifle:
+			SectionName = FName("Rifle");
+			break;
+		case EWeaponType::EWT_GrenadeLauncher:
+			SectionName = FName("Rifle");
+			break;
 		default:
 			break;
 		}
@@ -335,6 +341,13 @@ void ABlasterPlayer::MulticastEliminated_Implementation()
 	if (EliminationBotSound)
 	{
 		UGameplayStatics::SpawnSoundAtLocation(this, EliminationBotSound, GetActorLocation());
+	}
+
+	bool bHideSniperScope = IsLocallyControlled() && Kombat && Kombat->bAiming && Kombat->EquippedWeapon && Kombat->EquippedWeapon->GetWeaponType() == EWeaponType::EWT_SniperRifle;
+
+	if (bHideSniperScope)
+	{
+		ShowSniperScopeWidget(false);
 	}
 }
 
@@ -508,6 +521,11 @@ void ABlasterPlayer::AimButtonReleased()
 		Kombat->SetAiming(false);
 	}
 }
+
+//void ABlasterPlayer::ShowSniperScopeWidget(bool bShowScope)
+//{
+//
+//}
 
 void ABlasterPlayer::AimOffset(float DeltaTime)
 {

@@ -134,4 +134,5 @@ public:
 	FORCEINLINE int32 GetAmmo() const { return Ammo; }
 	FORCEINLINE int32 GetMagCapacity() const { return MagCapacity; }
 	FORCEINLINE float GetShootingSpreadFactor() { return CrosshairsSpreadFactor; }
+	//FORCEINLINE EWeaponState GetWeaponState() { return WeaponState; }
 };

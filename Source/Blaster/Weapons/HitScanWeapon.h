@@ -19,10 +19,8 @@ public:
 
 protected:
 
-
 	FVector TraceEndWithScatter(const FVector& TraceStart, const FVector& HitTarget);
-
-private:
+	void WeaponTraceHit(const FVector& TraceStart, const FVector& HitTarget, FHitResult& OutHit);
 
 	UPROPERTY(EditAnywhere)
 	float Damage = 20.f;
@@ -31,19 +29,21 @@ private:
 	class UParticleSystem* ImpactParticles;
 
 	UPROPERTY(EditAnywhere)
+	USoundCue* HitSound;
+
+private:
+
+	UPROPERTY(EditAnywhere)
 	UParticleSystem* BeamParticles;
 
 	UPROPERTY(EditAnywhere)
-	UParticleSystem* MuzzleFlush;
+	UParticleSystem* MuzzleFlash;
 
 	UPROPERTY(EditAnywhere)
 	USoundCue* FireSound;
 
-	UPROPERTY(EditAnywhere)
-	USoundCue* HitSound;
 
 	//Trace end with scatter
-
 	UPROPERTY(EditAnywhere, Category = "Weapon Scatter") //why sometimes use string sometimes just text
 	float DistanceToSphere = 800.f;
 

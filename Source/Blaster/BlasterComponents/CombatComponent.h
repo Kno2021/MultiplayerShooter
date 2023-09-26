@@ -83,6 +83,7 @@ private:
 	float AimWalkSpeed;
 
 	bool bFireButtonPressed;
+	bool bShowCrosshairs = true;
 
 	//HUD and Crosshairs
 	float CrosshairVelocityFactor; //not sure why the guy is using this, we could just assign the value directly into the croshair hud package
@@ -147,6 +148,11 @@ private:
 	UPROPERTY(EditAnywhere)
 	int32 StartingShotgunAmmo = 10;
 
+	UPROPERTY(EditAnywhere)
+	int32 StartingSniperAmmo = 15;
+
+	UPROPERTY(EditAnywhere)
+	int32 StartingGrenadeLauncherAmmo = 5;
 
 	void InitializeCarriedAmmo();
 
