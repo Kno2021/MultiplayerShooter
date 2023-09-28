@@ -114,8 +114,6 @@ void UCombatComponent::ServerThrowGrenade_Implementation()
 	UpdateHUDGrenades();
 }
 
-
-
 void UCombatComponent::ShowAttachedGrenade(bool bShowGrenade)
 {
 	if (Character && Character->GetAttachedGrenade())
@@ -138,6 +136,34 @@ void UCombatComponent::LaunchGrenade()
 	{
 		ServerLaunchGrenade(HitTarget);
 	}
+}
+
+void UCombatComponent::PickupAmmo(EWeaponType WeaponType, int32 AmmoAmount)
+{
+	if (CarriedAmmoMap.Contains(WeaponType) && MaxCarriedAmmoMap.Contains(WeaponType))
+	{
+		CarriedAmmoMap[WeaponType] = FMath::Clamp(CarriedAmmoMap[WeaponType] + AmmoAmount, 0, MaxCarriedAmmoMap[WeaponType]);
+		UpdateCarriedAmmo();
+	}
+	if (EquippedWeapon && EquippedWeapon->IsEmpty() && EquippedWeapon->GetWeaponType() == WeaponType)
+	{
+		Reload();
+	}
+}
+
+bool UCombatComponent::IsCarriedAmmoFull(EWeaponType WeaponType)
+{
+	if (CarriedAmmoMap.Contains(WeaponType) && MaxCarriedAmmoMap.Contains(WeaponType))
+	{
+		return CarriedAmmoMap[WeaponType] == MaxCarriedAmmoMap[WeaponType];
+	}
+	return false;
+}
+
+bool UCombatComponent::IsWeaponEquipped()
+{
+	if (EquippedWeapon == nullptr || EquippedWeapon->GetWeaponType() == EWeaponType::EWT_MAX) return false;
+	return true;
 }
 
 void UCombatComponent::OnRep_Grenades()

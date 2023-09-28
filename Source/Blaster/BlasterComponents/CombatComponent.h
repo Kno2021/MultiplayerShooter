@@ -42,6 +42,10 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void LaunchGrenade();
 
+	void PickupAmmo(EWeaponType WeaponType, int32 AmmoAmount);
+	bool IsCarriedAmmoFull(EWeaponType WeaponType);
+	bool IsWeaponEquipped();
+
 protected:
 	virtual void BeginPlay() override;
 	void SetAiming(bool bIsAiming);
@@ -161,6 +165,10 @@ private:
 
 	UPROPERTY(EditAnywhere)
 	TMap<EWeaponType, int32> CarriedAmmoMap; //key value pair, this is not replicated.
+
+
+	UPROPERTY(EditAnywhere)
+	TMap<EWeaponType, int32> MaxCarriedAmmoMap;
 	
 	UPROPERTY(EditAnywhere)
 	int32 StartingARAmmo = 30;
@@ -208,5 +216,6 @@ private:
 public:	
 	
 	FORCEINLINE int32 GetGrenades() const { return Grenades; }
+
 		
 };

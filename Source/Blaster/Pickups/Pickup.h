@@ -23,6 +23,9 @@ protected:
 	virtual void OnSphereOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
 		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
+	UPROPERTY(EditAnywhere)
+	float BaseTurnRate = 45.f;
+
 private:
 
 	UPROPERTY(EditAnywhere)
@@ -32,7 +35,7 @@ private:
 	class USoundCue* PickupSound;
 
 	UPROPERTY(EditAnywhere)
-	UStaticMeshComponent* PickupMesh;
+	class UStaticMeshComponent* PickupMesh;
 
 public:	
 	
