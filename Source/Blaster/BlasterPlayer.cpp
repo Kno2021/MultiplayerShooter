@@ -61,6 +61,10 @@ ABlasterPlayer::ABlasterPlayer()
 	MinNetUpdateFrequency = 33.f;
 
 	DissolveTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("DissolveTimelineComponent"));
+
+	AttachedGrenade = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Attached Grenade"));
+	AttachedGrenade->SetupAttachment(GetMesh(), FName("GrenadeSocket"));
+	AttachedGrenade->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
 void ABlasterPlayer::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -92,6 +96,10 @@ void ABlasterPlayer::BeginPlay()
 	if (HasAuthority())
 	{
 		OnTakeAnyDamage.AddDynamic(this, &ABlasterPlayer::ReceiveDamage);
+	}
+	if (AttachedGrenade)
+	{
+		AttachedGrenade->SetVisibility(false);
 	}
 }
 
@@ -148,7 +156,7 @@ void ABlasterPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 	//PlayerInputComponent->BindAxis("Look Up / Down Mouse", this, &APawn::AddControllerPitchInput);
 	PlayerInputComponent->BindAxis("LookUp", this, &ABlasterPlayer::LookUp);
 	//PlayerInputComponent->BindAxis("Look Up / Down Gamepad", this, &ABlasterPlayer::LookUpAtRate);
-
+	
 	PlayerInputComponent->BindAction("Equip", IE_Pressed, this, &ABlasterPlayer::EquipButtonPressed);
 	PlayerInputComponent->BindAction("Crouch", IE_Pressed, this, &ABlasterPlayer::CrouchButtonPressed);
 	PlayerInputComponent->BindAction("Aim", IE_Pressed, this, &ABlasterPlayer::AimButtonPressed);
@@ -156,6 +164,7 @@ void ABlasterPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 	PlayerInputComponent->BindAction("Fire", IE_Pressed, this, &ABlasterPlayer::FireButtonPressed);
 	PlayerInputComponent->BindAction("Fire", IE_Released, this, &ABlasterPlayer::FireButtonReleased);
 	PlayerInputComponent->BindAction("Reload", IE_Pressed, this, &ABlasterPlayer::ReloadButtonPressed);
+	PlayerInputComponent->BindAction("GrenadeThrow", IE_Pressed, this, &ABlasterPlayer::ThrowGrenadeButtonPressed);
 }
 
 void ABlasterPlayer::PostInitializeComponents()
@@ -198,22 +207,22 @@ void ABlasterPlayer::PlayReloadMontage()
 			SectionName = FName("Rifle");
 			break;
 		case EWeaponType::EWT_RocketLauncher:
-			SectionName = FName("Rifle");
+			SectionName = FName("RocketLauncher");
 			break;
 		case EWeaponType::EWT_Pistol:
-			SectionName = FName("Rifle");
+			SectionName = FName("Pistol");
 			break;
 		case EWeaponType::EWT_SubMachineGun:
-			SectionName = FName("Rifle");
+			SectionName = FName("Pistol");
 			break;
 		case EWeaponType::EWT_Shotgun:
-			SectionName = FName("Rifle");
+			SectionName = FName("Shotgun");
 			break;
 		case EWeaponType::EWT_SniperRifle:
-			SectionName = FName("Rifle");
+			SectionName = FName("SniperRifle");
 			break;
 		case EWeaponType::EWT_GrenadeLauncher:
-			SectionName = FName("Rifle");
+			SectionName = FName("GrenadeLauncher");
 			break;
 		default:
 			break;
@@ -235,6 +244,26 @@ void ABlasterPlayer::PlayEliminationMontage()
 	}
 }
 
+void ABlasterPlayer::PlayThrowGrenadeMontage()
+{
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+	if (AnimInstance && ThrowGrenadeMontage /*&& !AnimInstance->IsAnyMontagePlaying()*/)
+	{
+		/*if (AnimInstance->Montage_IsPlaying(FireWeaponMontage))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("FIRE WEAPON MONTAGE PLAYING"));
+			AnimInstance->Montage_Stop(0.1f, FireWeaponMontage);
+		}*/
+		if (AnimInstance->IsAnyMontagePlaying()) 
+		{
+			AnimInstance->StopAllMontages(0.1f);
+			//UE_LOG(LogTemp, Warning, TEXT("FIRE WEAPON MONTAGE PLAYING"));
+		}
+		
+		AnimInstance->Montage_Play(ThrowGrenadeMontage);
+	}
+}
+
 void ABlasterPlayer::PlayHitReactMontage()
 {
 	if (Kombat == nullptr || Kombat->EquippedWeapon == nullptr || bEliminated) return;
@@ -251,6 +280,7 @@ void ABlasterPlayer::PlayHitReactMontage()
 
 void ABlasterPlayer::ReceiveDamage(AActor* DamagedActor, float Damage, const UDamageType* DamageType, AController* InstigatorController, AActor* DamageCauser)
 {
+	if (bEliminated) return;
 	Health = FMath::Clamp(Health - Damage, 0.f, MaxHealth);
 	UpdateHUDHealth();
 	
@@ -502,6 +532,16 @@ void ABlasterPlayer::ReloadButtonPressed()
 	{
 		Kombat->Reload();
 	}
+}
+
+void ABlasterPlayer::ThrowGrenadeButtonPressed()
+{
+	if (bDisableGameplay) return;
+	if (Kombat)
+	{
+		Kombat->ThrowGrenade();
+	}
+
 }
 
 void ABlasterPlayer::AimButtonPressed()

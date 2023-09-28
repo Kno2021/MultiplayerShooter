@@ -25,10 +25,22 @@ public:
 
 	void EquipWeapon(class AWeapon* WeaponToEquip);
 	void Reload();
+
 	UFUNCTION(BlueprintCallable)
 	void FinishReloading();
 
 	void SetFireButtonPressed(bool Pressed);
+
+	UFUNCTION(BlueprintCallable)
+	void ShotgunShellReload();
+
+	void JumpToShotgunEnd();
+
+	UFUNCTION(BlueprintCallable)
+	void ThrowGrenadeFinished();
+
+	UFUNCTION(BlueprintCallable)
+	void LaunchGrenade();
 
 protected:
 	virtual void BeginPlay() override;
@@ -39,10 +51,8 @@ protected:
 
 	UFUNCTION()
 	void OnRep_EquippedWeapon();
-
 	void FireButtonPressed(bool bPressed);
-
-	void Fire();
+	void Fire();	
 
 	UFUNCTION(Server, Reliable)
 	void ServerFire(const FVector_NetQuantize& TraceHitTarget);
@@ -57,9 +67,28 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void ServerReload();
 
+	void ThrowGrenade();
+
+	UFUNCTION(Server, Reliable)
+	void ServerThrowGrenade();
+
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<class AProjectile> GrenadeClass;
+
 	void HandleReload();
 
 	int32 AmountToReload();
+
+	void UpdateWeaponType();
+	void UpdateCarriedAmmo();
+	void UpdateAmmoValues();
+	void UpdateShotgunAmmoValues();
+	void DropEquippedWeapon();
+	void AttachActorToRightHand(AActor* ActorToAttach);
+	void AttachActorToLeftHand(AActor* ActorToAttach);
+	void PlayEquipWeaponSound();
+	void ReloadEmptyWeapon();
+	void ShowAttachedGrenade(bool bShowGrenade);
 
 private:
 
@@ -120,8 +149,8 @@ private:
 
 	void StartFireTimer();
 	void FireTimerFinished();
-
 	bool CanFire();
+	
 
 	//carried ammo for the currently equipped weapon
 	UPROPERTY(ReplicatedUsing = OnRep_CarriedAmmo)
@@ -162,10 +191,22 @@ private:
 	UFUNCTION()
 	void OnRep_KombatState();
 
-	void UpdateAmmoValues();
+	UFUNCTION(Server, Reliable)
+	void ServerLaunchGrenade(const FVector_NetQuantize& Target);
+
+	UPROPERTY(ReplicatedUsing = OnRep_Grenades)
+	int32 Grenades = 4;
+
+	UPROPERTY(EditAnywhere)
+	int32 MaxGrenades = 4;
+
+	UFUNCTION()
+	void OnRep_Grenades();
+
+	void UpdateHUDGrenades();
 
 public:	
 	
-
+	FORCEINLINE int32 GetGrenades() const { return Grenades; }
 		
 };

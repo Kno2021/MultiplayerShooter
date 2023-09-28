@@ -9,6 +9,8 @@
 #include "Sound/SoundCue.h"
 #include "Blaster/BlasterPlayer.h"
 #include "Blaster/Blaster.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraComponent.h"
 
 
 AProjectile::AProjectile()
@@ -42,16 +44,52 @@ void AProjectile::BeginPlay()
 	}
 }
 
+void AProjectile::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+}
+
 void AProjectile::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
 	//damage and stuff
 	Destroy(); //this is replicated
 }
 
-void AProjectile::Tick(float DeltaTime)
+void AProjectile::SpawnTrailSystem()
 {
-	Super::Tick(DeltaTime);
+	if (TrailSystem)
+	{
+		FVector Position = GetActorLocation() - GetActorForwardVector() * 30.f;
+		TrailSystemComponent = UNiagaraFunctionLibrary::SpawnSystemAttached(TrailSystem, GetRootComponent(),
+			FName(), Position, GetActorRotation(), EAttachLocation::KeepWorldPosition, false);
+	}
+}
 
+void AProjectile::ExplodeDamage()
+{
+	APawn* FiringPawn = GetInstigator();
+	if (FiringPawn && HasAuthority())
+	{
+		AController* FiringController = FiringPawn->GetController();
+		if (FiringController)
+		{
+			UGameplayStatics::ApplyRadialDamageWithFalloff(this, Damage, 10.f, GetActorLocation(),
+				DamageInnerRadius, DamageOuterRadius, 1.f, UDamageType::StaticClass(), TArray<AActor*>(), this, FiringController);
+		}
+	}
+}
+
+
+void AProjectile::StartDestroyTimer()
+{
+	GetWorldTimerManager().SetTimer(DestroyTimer, this, &AProjectile::DestroyTimerFinished, DestroyTime);
+}
+
+
+void AProjectile::DestroyTimerFinished()
+{
+	Destroy();
 }
 
 //this is called whenever an actor is destroyed
