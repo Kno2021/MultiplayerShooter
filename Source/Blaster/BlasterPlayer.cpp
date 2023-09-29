@@ -9,6 +9,7 @@
 #include "Net/UnrealNetwork.h"
 #include "Blaster/Weapons/Weapon.h"
 #include "Blaster/BlasterComponents/CombatComponent.h"
+#include "Blaster/BlasterComponents/BuffComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "BlasterAnimInstance.h"
@@ -48,6 +49,9 @@ ABlasterPlayer::ABlasterPlayer()
 
 	Kombat = CreateDefaultSubobject<UCombatComponent>(TEXT("KombatComponent"));
 	Kombat->SetIsReplicated(true);
+
+	BuffComponent = CreateDefaultSubobject<UBuffComponent>(TEXT("BuffComponent"));
+	BuffComponent->SetIsReplicated(true);
 	
 	GetCharacterMovement()->NavAgentProps.bCanCrouch = true;
 	GetCharacterMovement()->RotationRate = FRotator(0.f, 0.f, 700.f);
@@ -75,6 +79,23 @@ void ABlasterPlayer::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 	DOREPLIFETIME_CONDITION(ABlasterPlayer, OverlappingWeapon, COND_OwnerOnly); //replication with condition only to pawn owner
 	DOREPLIFETIME(ABlasterPlayer, Health);
 	DOREPLIFETIME(ABlasterPlayer, bDisableGameplay);
+}
+
+void ABlasterPlayer::PostInitializeComponents()
+{
+	Super::PostInitializeComponents();
+
+	if (Kombat)
+	{
+		Kombat->Character = this;
+	}
+	if (BuffComponent)
+	{
+		BuffComponent->Character = this;
+		BuffComponent->SetInitialSpeeds(GetCharacterMovement()->MaxWalkSpeed, GetCharacterMovement()->MaxWalkSpeedCrouched);
+		BuffComponent->SetInitialJumpVelocity(GetCharacterMovement()->JumpZVelocity);
+		BuffComponent->SetInitialAirControl(GetCharacterMovement()->AirControl);
+	}
 }
 
 
@@ -167,15 +188,7 @@ void ABlasterPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 	PlayerInputComponent->BindAction("GrenadeThrow", IE_Pressed, this, &ABlasterPlayer::ThrowGrenadeButtonPressed);
 }
 
-void ABlasterPlayer::PostInitializeComponents()
-{
-	Super::PostInitializeComponents();
 
-	if (Kombat)
-	{
-		Kombat->Character = this;
-	}
-}
 
 void ABlasterPlayer::PlayFireMontage(bool bAiming)
 {
@@ -299,12 +312,15 @@ void ABlasterPlayer::ReceiveDamage(AActor* DamagedActor, float Damage, const UDa
 	PlayHitReactMontage();
 }
 
-void ABlasterPlayer::OnRep_Health()
+void ABlasterPlayer::OnRep_Health(float LastHealthValue) // we get the last value by replication. It uses the last known value
 {
 	UpdateHUDHealth();
 	if (!bEliminated)
 	{
-		PlayHitReactMontage();
+		if (Health < LastHealthValue)
+		{
+			PlayHitReactMontage();
+		}
 	}
 }
 
@@ -562,6 +578,7 @@ void ABlasterPlayer::AimButtonReleased()
 	}
 }
 
+//used in bluprint
 //void ABlasterPlayer::ShowSniperScopeWidget(bool bShowScope)
 //{
 //

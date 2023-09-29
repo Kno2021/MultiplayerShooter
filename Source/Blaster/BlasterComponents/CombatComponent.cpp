@@ -16,13 +16,20 @@
 #include "Sound/SoundCue.h"
 #include "Blaster/BlasterAnimInstance.h"
 #include "Blaster/Weapons/Projectile.h"
+#include "Blaster/BlasterComponents/BuffComponent.h"
 
 UCombatComponent::UCombatComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
 	SetIsReplicated(true);
 	BaseWalkSpeed = 600.f;
+	BaseCrouchSpeed = 300.f;
 	AimWalkSpeed = 450.f;
+	AimCrouchWalkSpeed = 300.f;
+	AimBuffedWalkSpeed = 600.f;
+	AimCrouchBuffedWalkSpeed = 600.f;
+	CurrentWalkSpeed = BaseWalkSpeed;
+	CurrentCrouchSpeed = BaseCrouchSpeed;
 
 }
 
@@ -45,6 +52,7 @@ void UCombatComponent::BeginPlay()
 	if (Character)
 	{
 		Character->GetCharacterMovement()->MaxWalkSpeed = BaseWalkSpeed;
+		Character->GetCharacterMovement()->MaxWalkSpeedCrouched = BaseCrouchSpeed;
 
 		if (Character->GetFollowCamera())
 		{
@@ -181,7 +189,6 @@ void UCombatComponent::UpdateHUDGrenades()
 }
 
 
-
 void UCombatComponent::ServerLaunchGrenade_Implementation(const FVector_NetQuantize& Target)
 {
 	if (Character && GrenadeClass && Character->GetAttachedGrenade())
@@ -307,8 +314,6 @@ void UCombatComponent::ReloadEmptyWeapon()
 	}
 }
 
-
-
 void UCombatComponent::PlayEquipWeaponSound()
 {
 	if (Character == nullptr || EquippedWeapon == nullptr) return;
@@ -410,6 +415,25 @@ void UCombatComponent::Reload()
 	{
 		ServerReload();
 	}
+}
+
+void UCombatComponent::SetSpeeds(float BaseSpeed, float CrouchSpeed)
+{
+	CurrentWalkSpeed = BaseSpeed;
+	CurrentCrouchSpeed = CrouchSpeed;
+	Character->GetCharacterMovement()->MaxWalkSpeed = BaseSpeed;
+	Character->GetCharacterMovement()->MaxWalkSpeedCrouched = CrouchSpeed;
+}
+
+void UCombatComponent::SetBuffState(bool bBuff)
+{
+	bSpeedBuffed = bBuff;
+	ServerBuffState(bSpeedBuffed);
+}
+
+void UCombatComponent::ServerBuffState_Implementation(bool bBuff)
+{
+	bSpeedBuffed = bBuff;
 }
 
 //called from blueprint animation
@@ -688,17 +712,14 @@ void UCombatComponent::InterpFOV(float DeltaTime)
 	}
 }
 
+
 void UCombatComponent::SetAiming(bool bIsAiming)
 {
 	if (Character == nullptr || EquippedWeapon == nullptr) return;
 
 	bAiming = bIsAiming;
 	ServerSetAiming(bIsAiming);
-
-	if (Character)
-	{
-		Character->GetCharacterMovement()->MaxWalkSpeed = bIsAiming ? AimWalkSpeed : BaseWalkSpeed;
-	}
+	
 	if (Character->IsLocallyControlled())
 	{
 		if (EquippedWeapon->GetWeaponType() == EWeaponType::EWT_SniperRifle)
@@ -707,15 +728,36 @@ void UCombatComponent::SetAiming(bool bIsAiming)
 			bShowCrosshairs = !bIsAiming;
 		}
 	}
+
+	if (Character)
+	{
+		if (bSpeedBuffed)
+		{
+			Character->GetCharacterMovement()->MaxWalkSpeed = bAiming ? AimBuffedWalkSpeed : CurrentWalkSpeed;
+			Character->GetCharacterMovement()->MaxWalkSpeedCrouched = bAiming ? AimCrouchBuffedWalkSpeed : CurrentCrouchSpeed;
+		}
+		else
+		{
+			Character->GetCharacterMovement()->MaxWalkSpeed = bAiming ? AimWalkSpeed : CurrentWalkSpeed;
+			Character->GetCharacterMovement()->MaxWalkSpeedCrouched = bAiming ? AimCrouchWalkSpeed : CurrentCrouchSpeed;
+		}
+	}
 }
+
 
 void UCombatComponent::ServerSetAiming_Implementation(bool bIsAiming)
 {
 	bAiming = bIsAiming;
 
-	if (Character)
+	if (bSpeedBuffed)
 	{
-		Character->GetCharacterMovement()->MaxWalkSpeed = bIsAiming ? AimWalkSpeed : BaseWalkSpeed;
+		Character->GetCharacterMovement()->MaxWalkSpeed = bAiming ? AimBuffedWalkSpeed : CurrentWalkSpeed;
+		Character->GetCharacterMovement()->MaxWalkSpeedCrouched = bAiming ? AimCrouchBuffedWalkSpeed : CurrentCrouchSpeed;
+	}
+	else
+	{
+		Character->GetCharacterMovement()->MaxWalkSpeed = bAiming ? AimWalkSpeed : CurrentWalkSpeed;
+		Character->GetCharacterMovement()->MaxWalkSpeedCrouched = bAiming ? AimCrouchWalkSpeed : CurrentCrouchSpeed;
 	}
 }
 

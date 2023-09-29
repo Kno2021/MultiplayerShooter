@@ -25,6 +25,9 @@ public:
 
 	void EquipWeapon(class AWeapon* WeaponToEquip);
 	void Reload();
+	void SetSpeeds(float BaseSpeed, float CrouchSpeed);
+
+	void SetBuffState(bool bBuff);
 
 	UFUNCTION(BlueprintCallable)
 	void FinishReloading();
@@ -46,12 +49,18 @@ public:
 	bool IsCarriedAmmoFull(EWeaponType WeaponType);
 	bool IsWeaponEquipped();
 
+
+
 protected:
 	virtual void BeginPlay() override;
+
 	void SetAiming(bool bIsAiming);
 
 	UFUNCTION(Server, Reliable)
 	void ServerSetAiming(bool bIsAiming);
+
+	UFUNCTION(NetMulticast, Reliable)
+	void ServerBuffState(bool bBuff);
 
 	UFUNCTION()
 	void OnRep_EquippedWeapon();
@@ -113,10 +122,28 @@ private:
 	float BaseWalkSpeed;
 
 	UPROPERTY(EditAnywhere)
+	float BaseCrouchSpeed;
+
+	UPROPERTY(EditAnywhere)
 	float AimWalkSpeed;
+
+	UPROPERTY(EditAnywhere)
+	float AimCrouchWalkSpeed;
+
+	UPROPERTY(EditAnywhere)
+	float AimBuffedWalkSpeed;
+
+	UPROPERTY(EditAnywhere)
+	float AimCrouchBuffedWalkSpeed;
+
+	float CurrentWalkSpeed;
+	float CurrentCrouchSpeed;
 
 	bool bFireButtonPressed;
 	bool bShowCrosshairs = true;
+
+	UPROPERTY(Replicated)
+	bool bSpeedBuffed;
 
 	//HUD and Crosshairs
 	float CrosshairVelocityFactor; //not sure why the guy is using this, we could just assign the value directly into the croshair hud package

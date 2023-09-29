@@ -1,0 +1,72 @@
+// Fill out your copyright notice in the Description page of Project Settings.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Components/ActorComponent.h"
+#include "BuffComponent.generated.h"
+
+
+UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
+class BLASTER_API UBuffComponent : public UActorComponent
+{
+	GENERATED_BODY()
+
+public:	
+
+	UBuffComponent();
+	friend class ABlasterPlayer;
+	void Heal(float HealAmount, float HealingTime);
+	void BuffSpeed(float BuffBaseSpeed, float BuffCrouchSpeed, float BuffTime);
+	void SetInitialSpeeds(float BaseSpeed, float CrouchSpeed);
+	void SetInitialJumpVelocity(float Velocity);
+	void SetInitialAirControl(float AirControl);
+	void BuffJump(float BuffJumpVelocity, float BuffTime, float AirControl);
+
+protected:
+
+	virtual void BeginPlay() override;
+	void HealRampUp(float DeltaTime);
+
+private:
+
+	UPROPERTY() //for nullptr
+	class ABlasterPlayer* Character;
+
+	//Heal Buff
+	bool bHealing = false;
+	float HealingRate = 0.f;
+	float AmountToHeal = 0.f;
+
+	//Speed buff
+	FTimerHandle SpeedBuffTimer;
+	void ResetSpeeds();
+	float InitialBaseSpeed;
+	float InitialCrouchSpeed;
+
+	float CurrentBuffSpeed;
+	float CurrentBuffCrouchSpeed;
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastSpeedBuff(float BaseSpeed, float CrouchSpeed);
+
+	bool bSpeedBuffActive = false;
+
+	//Jump buff
+	
+	FTimerHandle JumpBuffTimer;
+	void ResetJumpBuff();
+	float InitialJumpVelocity;
+	float InitialAirControl;
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastJumpBuff(float JumpVelocity, float AirControl);
+
+
+public:	
+
+	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+	FORCEINLINE bool GetIsSpeedBuffActive() { return bSpeedBuffActive; }
+	float GetSpeedIncreaseFactor();
+
+};

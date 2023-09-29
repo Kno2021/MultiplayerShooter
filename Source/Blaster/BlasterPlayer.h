@@ -38,7 +38,9 @@ public:
 	bool bDisableGameplay = false;
 
 	UFUNCTION(BlueprintImplementableEvent)
-		void ShowSniperScopeWidget(bool bShowScope);
+	void ShowSniperScopeWidget(bool bShowScope);
+
+	void UpdateHUDHealth();
 
 protected:
 	virtual void BeginPlay() override;
@@ -61,15 +63,17 @@ protected:
 	void FireButtonReleased();
 	void PlayHitReactMontage();
 
-
 	UFUNCTION()
 	void ReceiveDamage(AActor* DamagedActor, float Damage, const UDamageType* DamageType, class AController* InstigatorController, AActor* DamageCauser);
-	void UpdateHUDHealth();
+	
 	//poll for any relevant classes and initialize our Hud
 	void PollInit();
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAcces = "true"))
 	class UCombatComponent* Kombat;
+
+	UPROPERTY(VisibleAnywhere, meta = (AllowPrivateAcces = "true"))
+	class UBuffComponent* BuffComponent;
 
 private:
 	UPROPERTY(VisibleAnywhere, Category = Camera)
@@ -133,7 +137,7 @@ private:
 	float Health = 100.f;
 
 	UFUNCTION()
-	void OnRep_Health();
+	void OnRep_Health(float LastHealthValue);
 
 	UPROPERTY() //for nullptr
 	class ABlasterPlayerController* BlasterPlayerController;
@@ -205,10 +209,12 @@ public:
 	FORCEINLINE bool ShouldRotateRootBone() const { return bRotateRootBone; }
 	FORCEINLINE bool IsEliminated() const { return bEliminated; }
 	FORCEINLINE float GetHealth() const { return Health; }
+	FORCEINLINE void SetHealth(float Amount) { Health = Amount; }
 	FORCEINLINE float GetMaxHealth() const { return MaxHealth; }
 	ECombatState GetCombatState() const;
 	FORCEINLINE UCombatComponent* GetKombatComponent() { return Kombat; }
 	FORCEINLINE bool GetDisableGameplay() const { return bDisableGameplay; }
 	FORCEINLINE UAnimMontage* GetReloadMontage() const { return ReloadMontage; }
 	FORCEINLINE UStaticMeshComponent* GetAttachedGrenade() const { return AttachedGrenade; }
+	FORCEINLINE UBuffComponent* GetBuffComponent() const { return BuffComponent; }
 };
