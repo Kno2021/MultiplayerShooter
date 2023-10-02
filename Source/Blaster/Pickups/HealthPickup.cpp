@@ -25,7 +25,7 @@ void AHealthPickup::OnSphereOverlap(UPrimitiveComponent* OverlappedComponent, AA
 		UBuffComponent* BuffComponent = BlasterPlayer->GetBuffComponent();
 		if (BuffComponent)
 		{
-			BuffComponent->Heal(HealAmonut, HealingTime);
+			BuffComponent->Heal(HealAmount, HealingTime);
 		}
 	}
 

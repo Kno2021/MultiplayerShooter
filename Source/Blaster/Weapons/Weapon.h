@@ -14,9 +14,22 @@ enum class EWeaponState : uint8
 	EWS_Initial UMETA(DisplayName = "Initial State"),
 	EWS_Equipped UMETA(DisplayName = "Equipped"),
 	EWS_Dropped UMETA(DisplayName = "Dropped"),
+	EWS_EquippedSecondary UMETA(DisplayName = "Equipped Secondary"),
 
 	EWS_MAX UMETA(DisplayName = "DefaultMax")
 };
+
+UENUM(BlueprintType)
+enum class EFireType : uint8 
+{
+	EFT_HitScan UMETA(DisplayName = "Hitscan Weapon"),
+	EFT_Projectile UMETA(DisplayName = "Projectile Weapon"),
+	EFT_Shotgun UMETA(DisplayName = "Shotgun Weapon"),
+
+	EFT_MAX UMETA(DisplayName = "DefaultMax")
+};
+
+
 
 UCLASS()
 class BLASTER_API AWeapon : public AActor
@@ -34,6 +47,7 @@ public:
 	virtual void Fire(const FVector& HitTarget); //passing const reference is more effective than passing just the Fvector because it'll create a copy
 	void Dropped();
 	void AddAmmo(int32 AmmoToAdd);
+	FVector TraceEndWithScatter(const FVector& HitTarget);
 
 	//textures for the weapon crosshairs
 	UPROPERTY(EditAnywhere, Category = Crosshairs)
@@ -64,8 +78,17 @@ public:
 	//enable custom Debth
 	void EnableCustomDepth(bool bEnable);
 
+	bool bDestroyWeapon = false;
+
+	UPROPERTY(EditAnywhere)
+	EFireType FireType;
+
 protected:
 	virtual void BeginPlay() override;
+	virtual void OnWeaponStateSet();
+	virtual void OnEquipped();
+	virtual void OnDropped();
+	virtual void OnEquippedSecondary();
 
 	UFUNCTION() //this is needed because we are linking it to a delegate... for some reason.
 	virtual void OnSphereOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
@@ -73,6 +96,19 @@ protected:
 	UFUNCTION()
 	void OnSphereEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
 		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+
+	UPROPERTY(EditAnywhere, Category = Combat)
+	float FireTraceLength = 500.f;
+
+	UPROPERTY(EditAnywhere, Category = "Weapon Scatter")
+	bool bUseScatter = false;
+
+	//Trace end with scatter
+	UPROPERTY(EditAnywhere, Category = "Weapon Scatter") //why sometimes use string and sometimes just text
+	float DistanceToSphere = 800.f;
+
+	UPROPERTY(EditAnywhere, Category = "Weapon Scatter")
+	float SphereRadius = 75.f;
 
 private:
 	UPROPERTY(VisibleAnywhere, Category = "Weapon Properties")
@@ -106,16 +142,26 @@ private:
 	UPROPERTY(EditAnywhere)
 	float ZoomedInterpSpeed = 20.f;
 
-	UPROPERTY(EditAnywhere, ReplicatedUsing = OnRep_Ammo)
+	UPROPERTY(EditAnywhere);// , ReplicatedUsing = OnRep_Ammo) not used but good for reference
 	int32 Ammo;
 
-	UFUNCTION()
-	void OnRep_Ammo();
+	/*UFUNCTION()
+	void OnRep_Ammo();*/
+
+	UFUNCTION(Client, Reliable)
+	void ClientUpdateAmmo(int32 ServerAmmo);
+
+	UFUNCTION(Client, Reliable)
+	void ClientAddAmmo(int32 AmmoToAdd);
 
 	void SpendRound();
 
 	UPROPERTY(EditAnywhere)
 	int32 MagCapacity;
+
+	//The number of unprocessed server requests for Ammo.
+	//Incremented in SpendRound, decremented in CLientUpdateAmmo
+	int32 Sequence = 0;
 
 	UPROPERTY() //for nullptr
 	class ABlasterPlayer* BlasterOwnerPlayer;
@@ -138,5 +184,7 @@ public:
 	FORCEINLINE int32 GetAmmo() const { return Ammo; }
 	FORCEINLINE int32 GetMagCapacity() const { return MagCapacity; }
 	FORCEINLINE float GetShootingSpreadFactor() { return CrosshairsSpreadFactor; }
+	FORCEINLINE float GetWeaponTraceLength() { return FireTraceLength; }
+	FORCEINLINE bool UseScatter() { return bUseScatter; }
 	//FORCEINLINE EWeaponState GetWeaponState() { return WeaponState; }
 };

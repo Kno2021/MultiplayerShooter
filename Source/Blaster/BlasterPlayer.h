@@ -38,9 +38,13 @@ public:
 	bool bDisableGameplay = false;
 
 	UFUNCTION(BlueprintImplementableEvent)
-	void ShowSniperScopeWidget(bool bShowScope);
+	void ShowSniperScopeWidget(bool bShowScope); //called from blueprint
 
 	void UpdateHUDHealth();
+	void UpdateHUDShield();
+	void UpdateHUDAmmo();
+	void SpawnDefaultWeapon();
+
 
 protected:
 	virtual void BeginPlay() override;
@@ -50,10 +54,12 @@ protected:
 	void LookUp(float Value);
 	void RotateInPlace(float DeltaTime);
 	void EquipButtonPressed();
+	void SwapWeaponButtonPressed();
 	void CrouchButtonPressed();
 	void ReloadButtonPressed();
 	void ThrowGrenadeButtonPressed();
 	void AimButtonPressed();
+	void AimButtonHeld(float Value);
 	void AimButtonReleased();
 	void AimOffset(float DeltaTime);
 	void CalculateAO_Pitch();
@@ -62,6 +68,9 @@ protected:
 	void FireButtonPressed();
 	void FireButtonReleased();
 	void PlayHitReactMontage();
+	void DropOrDestroyWeapon(AWeapon* Weapon);
+
+	bool bAimButtonPressed;
 
 	UFUNCTION()
 	void ReceiveDamage(AActor* DamagedActor, float Damage, const UDamageType* DamageType, class AController* InstigatorController, AActor* DamageCauser);
@@ -92,6 +101,12 @@ private:
 
 	UFUNCTION(Server, Reliable)
 	void ServerEquipButtonPressed();
+
+	UFUNCTION(Server, Reliable)
+	void ServerSwapWeaponButtonPressed();
+
+	/*UFUNCTION(Server, Reliable)
+	void ServerSetAimWhenSwap();*/
 
 	float InterpAO_Yaw;
 	float AO_Yaw;
@@ -138,6 +153,16 @@ private:
 
 	UFUNCTION()
 	void OnRep_Health(float LastHealthValue);
+
+	//Player Shield
+	UPROPERTY(EditAnywhere, Category = "Player Stats")
+	float MaxShield = 100.f;
+
+	UPROPERTY(ReplicatedUsing = OnRep_Shield, EditAnywhere, Category = "Player Stats") //changed to edyt anywhere from visible anywhere
+	float Shield = 0.f;
+
+	UFUNCTION()
+	void OnRep_Shield(float LastShieldValue);
 
 	UPROPERTY() //for nullptr
 	class ABlasterPlayerController* BlasterPlayerController;
@@ -192,6 +217,11 @@ private:
 	UPROPERTY(VisibleAnywhere)
 	UStaticMeshComponent* AttachedGrenade;
 
+	//Default Weapon Carried
+
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<AWeapon> DefaultWeaponClass;
+
 public:	
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAcces = "true"))
@@ -211,10 +241,14 @@ public:
 	FORCEINLINE float GetHealth() const { return Health; }
 	FORCEINLINE void SetHealth(float Amount) { Health = Amount; }
 	FORCEINLINE float GetMaxHealth() const { return MaxHealth; }
+	FORCEINLINE float GetShield() const { return Shield; }
+	FORCEINLINE float GetMaxShield() const { return MaxShield; }
+	FORCEINLINE void SetShield(float Amount) { Shield = Amount; }
 	ECombatState GetCombatState() const;
 	FORCEINLINE UCombatComponent* GetKombatComponent() { return Kombat; }
 	FORCEINLINE bool GetDisableGameplay() const { return bDisableGameplay; }
 	FORCEINLINE UAnimMontage* GetReloadMontage() const { return ReloadMontage; }
 	FORCEINLINE UStaticMeshComponent* GetAttachedGrenade() const { return AttachedGrenade; }
 	FORCEINLINE UBuffComponent* GetBuffComponent() const { return BuffComponent; }
+	bool IsLocallyReloading();
 };

@@ -17,6 +17,16 @@ void UBuffComponent::BeginPlay()
 	Super::BeginPlay();
 }
 
+
+void UBuffComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	HealRampUp(DeltaTime);
+	ShieldRampUp(DeltaTime);
+}
+
+
 void UBuffComponent::SetInitialSpeeds(float BaseSpeed, float CrouchSpeed)
 {
 	InitialBaseSpeed = BaseSpeed;
@@ -66,13 +76,6 @@ void UBuffComponent::MulticastJumpBuff_Implementation(float JumpVelocity, float 
 	}
 }
 
-void UBuffComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
-{
-	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-
-	HealRampUp(DeltaTime);
-
-}
 
 float UBuffComponent::GetSpeedIncreaseFactor()
 {
@@ -100,6 +103,30 @@ void UBuffComponent::HealRampUp(float DeltaTime)
 	{
 		bHealing = false;
 		AmountToHeal = 0.f;
+	}
+}
+
+void UBuffComponent::ReplenishShield(float ShieldAmount, float ReplenishTime)
+{
+	if (ShieldAmount < 0.0f || ReplenishTime <= 0.0f) return; //I ADDED THIS CHECK!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	bRepleneshingShield = true;
+	ShieldReplenishAmount += ShieldAmount;
+	ShieldReplenishRate = ShieldAmount / ReplenishTime;
+}
+
+void UBuffComponent::ShieldRampUp(float DeltaTime)
+{
+	if (!bRepleneshingShield || Character == nullptr || Character->IsEliminated()) return;
+
+	const float ReplenishThisFrame = ShieldReplenishRate * DeltaTime;
+	Character->SetShield(FMath::Clamp(Character->GetShield() + ReplenishThisFrame, 0.f, Character->GetMaxShield()));
+	Character->UpdateHUDShield();
+	ShieldReplenishAmount -= ReplenishThisFrame;
+
+	if (ShieldReplenishAmount <= 0.f || Character->GetShield() >= Character->GetMaxShield())
+	{
+		bRepleneshingShield = false;
+		ShieldReplenishAmount = 0.f;
 	}
 }
 

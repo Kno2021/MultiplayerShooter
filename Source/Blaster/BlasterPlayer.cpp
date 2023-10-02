@@ -78,6 +78,7 @@ void ABlasterPlayer::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 	//DOREPLIFETIME(ABlasterPlayer, OverlappingWeapon);
 	DOREPLIFETIME_CONDITION(ABlasterPlayer, OverlappingWeapon, COND_OwnerOnly); //replication with condition only to pawn owner
 	DOREPLIFETIME(ABlasterPlayer, Health);
+	DOREPLIFETIME(ABlasterPlayer, Shield);
 	DOREPLIFETIME(ABlasterPlayer, bDisableGameplay);
 }
 
@@ -99,21 +100,15 @@ void ABlasterPlayer::PostInitializeComponents()
 }
 
 
-void ABlasterPlayer::OnRep_ReplicatedMovement()
-{
-	Super::OnRep_ReplicatedMovement();
-	SimProxiesTurn();
-	TimeSinceLastMovementReplication = 0.f;
-}
-
-
 void ABlasterPlayer::BeginPlay()
 {
 	Super::BeginPlay();
-
+	SpawnDefaultWeapon();
+	UpdateHUDAmmo();
 	UpdateHUDHealth();
-	//BlasterPlayerState->DisplayDeathMessage(false);
-	//BlasterPlayerState->UpdateDeathMessage("");
+	UpdateHUDShield();
+	
+
 	if (HasAuthority())
 	{
 		OnTakeAnyDamage.AddDynamic(this, &ABlasterPlayer::ReceiveDamage);
@@ -179,15 +174,16 @@ void ABlasterPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 	//PlayerInputComponent->BindAxis("Look Up / Down Gamepad", this, &ABlasterPlayer::LookUpAtRate);
 	
 	PlayerInputComponent->BindAction("Equip", IE_Pressed, this, &ABlasterPlayer::EquipButtonPressed);
+	PlayerInputComponent->BindAction("SwapWeapon", IE_Pressed, this, &ABlasterPlayer::SwapWeaponButtonPressed);
 	PlayerInputComponent->BindAction("Crouch", IE_Pressed, this, &ABlasterPlayer::CrouchButtonPressed);
-	PlayerInputComponent->BindAction("Aim", IE_Pressed, this, &ABlasterPlayer::AimButtonPressed);
-	PlayerInputComponent->BindAction("Aim", IE_Released, this, &ABlasterPlayer::AimButtonReleased);
+	//PlayerInputComponent->BindAction("Aim", IE_Pressed, this, &ABlasterPlayer::AimButtonPressed);
+	PlayerInputComponent->BindAxis("Aim", this, &ABlasterPlayer::AimButtonHeld);
+	//PlayerInputComponent->BindAction("Aim", IE_Released, this, &ABlasterPlayer::AimButtonReleased);
 	PlayerInputComponent->BindAction("Fire", IE_Pressed, this, &ABlasterPlayer::FireButtonPressed);
 	PlayerInputComponent->BindAction("Fire", IE_Released, this, &ABlasterPlayer::FireButtonReleased);
 	PlayerInputComponent->BindAction("Reload", IE_Pressed, this, &ABlasterPlayer::ReloadButtonPressed);
 	PlayerInputComponent->BindAction("GrenadeThrow", IE_Pressed, this, &ABlasterPlayer::ThrowGrenadeButtonPressed);
 }
-
 
 
 void ABlasterPlayer::PlayFireMontage(bool bAiming)
@@ -279,7 +275,7 @@ void ABlasterPlayer::PlayThrowGrenadeMontage()
 
 void ABlasterPlayer::PlayHitReactMontage()
 {
-	if (Kombat == nullptr || Kombat->EquippedWeapon == nullptr || bEliminated) return;
+	if (Kombat == nullptr || Kombat->EquippedWeapon == nullptr || bEliminated || Kombat->KombatState == ECombatState::ECS_Reloading) return;
 
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 	if (AnimInstance && HitReactMontage && !AnimInstance->IsAnyMontagePlaying())
@@ -291,11 +287,31 @@ void ABlasterPlayer::PlayHitReactMontage()
 	}
 }
 
+
 void ABlasterPlayer::ReceiveDamage(AActor* DamagedActor, float Damage, const UDamageType* DamageType, AController* InstigatorController, AActor* DamageCauser)
 {
 	if (bEliminated) return;
-	Health = FMath::Clamp(Health - Damage, 0.f, MaxHealth);
+	float DamageToHealth = Damage;
+	if (Shield > 0.f)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SHIELD GREATER THAN ZERO"));
+		if (Shield >= Damage)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("SHIELD GREATER THAN DAMAGE"));
+			Shield = FMath::Clamp(Shield - Damage, 0.f, MaxShield); 
+			DamageToHealth = 0.f;
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("SHIELD LESS THAN DAMAGE"));
+			DamageToHealth = FMath::Clamp(DamageToHealth - Shield, 0.f, Damage);
+			Shield = 0.f;
+		}
+	}
+
+	Health = FMath::Clamp(Health - DamageToHealth, 0.f, MaxHealth);
 	UpdateHUDHealth();
+	UpdateHUDShield();
 	
 	if (Health == 0.f)
 	{
@@ -324,12 +340,32 @@ void ABlasterPlayer::OnRep_Health(float LastHealthValue) // we get the last valu
 	}
 }
 
+void ABlasterPlayer::OnRep_Shield(float LastShieldValue)
+{
+	UpdateHUDShield();
+	if (!bEliminated)
+	{
+		if (Shield < LastShieldValue)
+		{
+			PlayHitReactMontage();
+		}
+	}
+}
+
 void ABlasterPlayer::Eliminated()
 {
-	if (Kombat && Kombat->EquippedWeapon)
+	if (Kombat)
 	{
-		Kombat->EquippedWeapon->Dropped();
+		if (Kombat->EquippedWeapon)
+		{
+			DropOrDestroyWeapon(Kombat->EquippedWeapon);
+		}
+		if (Kombat->SecondaryWeapon)
+		{
+			DropOrDestroyWeapon(Kombat->SecondaryWeapon);
+		}
 	}
+	
 	MulticastEliminated();
 	GetWorldTimerManager().SetTimer(EliminationTimer, this, &ABlasterPlayer::EliminationTimerFinished, EliminationDelay);
 }
@@ -371,6 +407,7 @@ void ABlasterPlayer::MulticastEliminated_Implementation()
 	if (Kombat)
 	{
 		Kombat->SetFireButtonPressed(false);
+		Kombat->SetAiming(false); //////////////////i ADDDDDDDDDDEDD THISSSSSSSSSSSSSSSS CHEEEEEEEEEEEEEEEEEEEEEEEEEEEECK
 	}
 	// Disable collision
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -408,6 +445,19 @@ void ABlasterPlayer::EliminationTimerFinished()
 	//GetMesh()->bPauseAnims = true; // i added this
 }
 
+void ABlasterPlayer::DropOrDestroyWeapon(AWeapon* Weapon)
+{
+	if (Weapon == nullptr) return;
+	if (Weapon->bDestroyWeapon)
+	{
+		Weapon->Destroy();
+	}
+	else
+	{
+		Weapon->Dropped();
+	}
+}
+
 void ABlasterPlayer::Destroyed()
 {
 	Super::Destroyed();
@@ -429,6 +479,42 @@ void ABlasterPlayer::UpdateHUDHealth()
 	if (BlasterPlayerController)
 	{
 		BlasterPlayerController->SetHUDHealth(Health, MaxHealth);
+	}
+}
+
+void ABlasterPlayer::UpdateHUDShield()
+{
+	BlasterPlayerController = BlasterPlayerController == nullptr ? Cast<ABlasterPlayerController>(Controller) : BlasterPlayerController;
+	if (BlasterPlayerController)
+	{
+		BlasterPlayerController->SetHUDShield(Shield, MaxShield);
+	}
+}
+
+void ABlasterPlayer::UpdateHUDAmmo()
+{
+	BlasterPlayerController = BlasterPlayerController == nullptr ? Cast<ABlasterPlayerController>(Controller) : BlasterPlayerController;
+	if (BlasterPlayerController && Kombat && Kombat->EquippedWeapon)
+	{
+		BlasterPlayerController->SetHUDCarriedAmmo(Kombat->CarriedAmmo);
+		BlasterPlayerController->SetHUDWeaponAmmo(Kombat->EquippedWeapon->GetAmmo());
+	}
+}
+
+void ABlasterPlayer::SpawnDefaultWeapon()
+{
+	ABlasterGameMode* BlasterGameMode = Cast<ABlasterGameMode>(UGameplayStatics::GetGameMode(this));
+	UWorld* World = GetWorld();
+
+	if (BlasterGameMode && World && !bEliminated && DefaultWeaponClass)
+	{
+		AWeapon* StartingWeapon = World->SpawnActor<AWeapon>(DefaultWeaponClass);
+		StartingWeapon->bDestroyWeapon = true;
+		if (Kombat)
+		{
+			Kombat->EquipWeapon(StartingWeapon);
+			Kombat->UpdateWeaponType();
+		}
 	}
 }
 
@@ -494,6 +580,15 @@ void ABlasterPlayer::LookUp(float Value)
 	}
 }
 
+void ABlasterPlayer::OnRep_ReplicatedMovement()
+{
+	Super::OnRep_ReplicatedMovement();
+	SimProxiesTurn();
+	TimeSinceLastMovementReplication = 0.f;
+}
+
+
+
 void ABlasterPlayer::OnRep_OverlappingWeapon(AWeapon* LastWeapon)
 {
 	if (OverlappingWeapon)
@@ -506,20 +601,13 @@ void ABlasterPlayer::OnRep_OverlappingWeapon(AWeapon* LastWeapon)
 	}
 }
 
+
 void ABlasterPlayer::EquipButtonPressed()
 {
 	if (bDisableGameplay) return;
 	if (Kombat )
 	{
-		if (HasAuthority())
-		{
-			Kombat->EquipWeapon(OverlappingWeapon);
-		}
-		else 
-		{
-			ServerEquipButtonPressed();
-		}
-		
+		ServerEquipButtonPressed();
 	}
 }
 
@@ -527,9 +615,46 @@ void ABlasterPlayer::ServerEquipButtonPressed_Implementation()
 {
 	if (Kombat)
 	{
-		Kombat->EquipWeapon(OverlappingWeapon);
+		if (OverlappingWeapon)
+		{
+			Kombat->EquipWeapon(OverlappingWeapon);
+		}
 	}
 }
+
+void ABlasterPlayer::SwapWeaponButtonPressed()
+{
+	/*if (Kombat)
+	{
+		ServerSwapWeaponButtonPressed();
+	}*/
+	if (Kombat && Kombat->ShouldSwapWeapons())
+	{
+		//Kombat->SetAiming(false);
+		ServerSwapWeaponButtonPressed();
+		//ServerSetAimWhenSwap();
+		//Kombat->SwapWeapons();
+	}
+}
+
+void ABlasterPlayer::ServerSwapWeaponButtonPressed_Implementation()
+{
+	if (Kombat && Kombat->ShouldSwapWeapons())
+	{
+		//Kombat->SetAiming(false);
+		Kombat->SwapWeapons();
+	}
+}
+
+//void ABlasterPlayer::ServerSetAimWhenSwap_Implementation()
+//{
+//	if (Kombat)
+//	{
+//		Kombat->SetAiming(false);
+//		//Kombat->SwapWeapons();
+//	}
+//}
+
 
 void ABlasterPlayer::CrouchButtonPressed()
 {
@@ -560,11 +685,40 @@ void ABlasterPlayer::ThrowGrenadeButtonPressed()
 
 }
 
+void ABlasterPlayer::AimButtonHeld(float Value)
+{
+	if (bDisableGameplay) return;
+	if (Kombat && Kombat->EquippedWeapon != nullptr)
+	{
+		if (Kombat->KombatState == ECombatState::ECS_Reloading)
+		{
+			Kombat->SetAiming(false);
+			return;
+		}
+		if (Value == 1.f)
+		{
+			Kombat->SetAiming(true);
+		}
+		else 
+		{
+			Kombat->SetAiming(false);
+		}
+		bAimButtonPressed = Value == 1.0f;
+	}
+}
+
 void ABlasterPlayer::AimButtonPressed()
 {
 	if (bDisableGameplay) return;
 	if (Kombat && Kombat->EquippedWeapon != nullptr)
 	{
+		/*if (Kombat->KombatState == ECombatState::ECS_Reloading)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("RELOADING, SET AIMING TO FALSE"));
+			Kombat->SetAiming(false);
+			return;
+		}*/
+		UE_LOG(LogTemp, Warning, TEXT("AIMING"));
 		Kombat->SetAiming(true);
 	}
 }
@@ -577,6 +731,25 @@ void ABlasterPlayer::AimButtonReleased()
 		Kombat->SetAiming(false);
 	}
 }
+
+void ABlasterPlayer::FireButtonPressed()
+{
+	if (bDisableGameplay) return;
+	if (Kombat)
+	{
+		Kombat->FireButtonPressed(true);
+	}
+}
+
+void ABlasterPlayer::FireButtonReleased()
+{
+	if (bDisableGameplay) return;
+	if (Kombat)
+	{
+		Kombat->FireButtonPressed(false);
+	}
+}
+
 
 //used in bluprint
 //void ABlasterPlayer::ShowSniperScopeWidget(bool bShowScope)
@@ -680,24 +853,6 @@ void ABlasterPlayer::Jump()
 	}
 }
 
-void ABlasterPlayer::FireButtonPressed()
-{
-	if (bDisableGameplay) return;
-	if (Kombat)
-	{
-		Kombat->FireButtonPressed(true);
-	}
-}
-
-void ABlasterPlayer::FireButtonReleased()
-{
-	if (bDisableGameplay) return;
-	if (Kombat)
-	{
-		Kombat->FireButtonPressed(false);
-	}
-}
-
 void ABlasterPlayer::TurnInPlace(float DeltaTime)
 {
 	//UE_LOG(LogTemp, Warning, TEXT("AO_Yaw: %f"), AO_Yaw);
@@ -732,6 +887,10 @@ void ABlasterPlayer::HideCameraIfCharacterClose()
 		{
 			Kombat->EquippedWeapon->GetWeaponMesh()->bOwnerNoSee = true;
 		}
+		if (Kombat && Kombat->SecondaryWeapon && Kombat->SecondaryWeapon->GetWeaponMesh())
+		{
+			Kombat->SecondaryWeapon->GetWeaponMesh()->bOwnerNoSee = true;
+		}
 	}
 	else 
 	{
@@ -739,6 +898,10 @@ void ABlasterPlayer::HideCameraIfCharacterClose()
 		if (Kombat && Kombat->EquippedWeapon && Kombat->EquippedWeapon->GetWeaponMesh())
 		{
 			Kombat->EquippedWeapon->GetWeaponMesh()->bOwnerNoSee = false;
+		}
+		if (Kombat && Kombat->SecondaryWeapon && Kombat->SecondaryWeapon->GetWeaponMesh())
+		{
+			Kombat->SecondaryWeapon->GetWeaponMesh()->bOwnerNoSee = false;
 		}
 	}
 }
@@ -815,5 +978,11 @@ ECombatState ABlasterPlayer::GetCombatState() const
 	if (Kombat == nullptr) return ECombatState::ECS_MAX;
 
 	return Kombat->KombatState;
+}
+
+bool ABlasterPlayer::IsLocallyReloading()
+{
+	if (Kombat == nullptr) return false;
+	return Kombat->bLocallyReloading;
 }
 
