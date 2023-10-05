@@ -44,7 +44,8 @@ public:
 	void UpdateHUDShield();
 	void UpdateHUDAmmo();
 	void SpawnDefaultWeapon();
-
+	UPROPERTY()
+	TMap<FName, class UBoxComponent*> HitCollisionBoxes;
 
 protected:
 	virtual void BeginPlay() override;
@@ -83,6 +84,58 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, meta = (AllowPrivateAcces = "true"))
 	class UBuffComponent* BuffComponent;
+
+	UPROPERTY(VisibleAnywhere)
+	class ULagCompensationComponent* LagCompensationComponent;
+
+
+	//Hit boxes used for server-side rewind
+	UPROPERTY(EditAnywhere)
+	UBoxComponent* HeadBox;
+
+	UPROPERTY(EditAnywhere) 
+	UBoxComponent* PelvisBox;
+
+	UPROPERTY(EditAnywhere) 
+	UBoxComponent* Spine3Box;
+
+	UPROPERTY(EditAnywhere) 
+	UBoxComponent* Spine5Box;
+
+	UPROPERTY(EditAnywhere)
+	UBoxComponent* UpperArm_L;
+
+	UPROPERTY(EditAnywhere) 
+	UBoxComponent* UpperArm_R;
+
+	UPROPERTY(EditAnywhere) 
+	UBoxComponent* LowerArm_L;
+
+	UPROPERTY(EditAnywhere) 
+	UBoxComponent* LowerArm_R;
+
+	UPROPERTY(EditAnywhere) 
+	UBoxComponent* Hand_L;
+
+	UPROPERTY(EditAnywhere) 
+	UBoxComponent* Hand_R;
+
+	UPROPERTY(EditAnywhere)
+	UBoxComponent* Thigh_L;
+
+	UPROPERTY(EditAnywhere) 
+	UBoxComponent* Thigh_R;
+
+	UPROPERTY(EditAnywhere) 
+	UBoxComponent* Calf_L;
+
+	UPROPERTY(EditAnywhere) 
+	UBoxComponent* Calf_R;
+
+	UPROPERTY(EditAnywhere) 
+	UBoxComponent* Foot_L;
+	UPROPERTY(EditAnywhere) 
+	UBoxComponent* Foot_R;
 
 private:
 	UPROPERTY(VisibleAnywhere, Category = Camera)
@@ -251,4 +304,5 @@ public:
 	FORCEINLINE UStaticMeshComponent* GetAttachedGrenade() const { return AttachedGrenade; }
 	FORCEINLINE UBuffComponent* GetBuffComponent() const { return BuffComponent; }
 	bool IsLocallyReloading();
+	FORCEINLINE ULagCompensationComponent* GetLagCompensationComponent() const { return LagCompensationComponent; }
 };

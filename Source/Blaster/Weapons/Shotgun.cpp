@@ -4,10 +4,12 @@
 #include "Shotgun.h"
 #include "Engine/SkeletalMeshSocket.h"
 #include "Blaster/BlasterPlayer.h"
+#include "Blaster/PlayerController/BlasterPlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "Particles/ParticleSystemComponent.h"
 #include "Sound/SoundCue.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "Blaster/BlasterComponents/LagCompensationComponent.h"
 
 
 void AShotgun::FireShotgun(const TArray<FVector_NetQuantize>& HitTargets)
@@ -54,11 +56,39 @@ void AShotgun::FireShotgun(const TArray<FVector_NetQuantize>& HitTargets)
 				}
 			}
 		}
+
+		TArray<ABlasterPlayer*> HitCharacters;
+
 		for (auto HitPair : HitMap) 
 		{
-			if (HitPair.Key && HasAuthority() && InstigatorController) 
+			if (HitPair.Key && /*HasAuthority() && */InstigatorController) 
 			{
-				UGameplayStatics::ApplyDamage(HitPair.Key, Damage * HitPair.Value, InstigatorController, this, UDamageType::StaticClass()); 
+				bool bCauseAuthDamage = !bUseServerSideRewind || OwnerPawn->IsLocallyControlled();
+				if (HasAuthority() && bCauseAuthDamage /*&& !bUseServerSideRewind*/)//on server 
+				{
+					//this is for to apply dagame only in the server.
+					UGameplayStatics::ApplyDamage(
+						HitPair.Key, //Character that was hit
+						Damage * HitPair.Value, //Multiply Damage by number of times hit
+						InstigatorController, this, UDamageType::StaticClass()); 
+				} 
+
+				HitCharacters.Add(HitPair.Key);			
+			}
+		}
+
+		if (!HasAuthority() && bUseServerSideRewind)
+		{
+			BlasterOwnerPlayer = BlasterOwnerPlayer == nullptr ? Cast<ABlasterPlayer>(OwnerPawn) : BlasterOwnerPlayer;
+			BlasterOwnerPlayerController = BlasterOwnerPlayerController == nullptr ? Cast<ABlasterPlayerController>(InstigatorController) : BlasterOwnerPlayerController;
+			if (BlasterOwnerPlayer && BlasterOwnerPlayerController && BlasterOwnerPlayer->GetLagCompensationComponent() && BlasterOwnerPlayer->IsLocallyControlled())
+			{
+				BlasterOwnerPlayer->GetLagCompensationComponent()->ShotgunServerScoreRequest(
+					HitCharacters,
+					Start,
+					HitTargets,
+					BlasterOwnerPlayerController->GetServerTime() - BlasterOwnerPlayerController->SingleTripTime
+				);
 			}
 		}
 	}

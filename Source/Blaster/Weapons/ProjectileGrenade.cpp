@@ -17,6 +17,7 @@ AProjectileGrenade::AProjectileGrenade()
 	ProjectileMovementComponent->bRotationFollowsVelocity = true;
 	ProjectileMovementComponent->SetIsReplicated(true);
 	ProjectileMovementComponent->bShouldBounce = true;
+	ProjectileMovementComponent->ProjectileGravityScale = ProjectileGravityScale;
 }
 
 

@@ -110,6 +110,22 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Weapon Scatter")
 	float SphereRadius = 75.f;
 
+	UPROPERTY(EditAnywhere)
+	float Damage = 20.f;
+
+	UPROPERTY(Replicated, EditAnywhere)
+	bool bUseServerSideRewind = false;
+
+	UPROPERTY() //for nullptr
+	class ABlasterPlayer* BlasterOwnerPlayer;
+	UPROPERTY() //for nullptr
+	class ABlasterPlayerController* BlasterOwnerPlayerController;
+
+	UFUNCTION()
+	void OnPingTooHigh(bool bPingTooHigh);
+
+	void PollInit();
+
 private:
 	UPROPERTY(VisibleAnywhere, Category = "Weapon Properties")
 	USkeletalMeshComponent* WeaponMesh;
@@ -163,13 +179,10 @@ private:
 	//Incremented in SpendRound, decremented in CLientUpdateAmmo
 	int32 Sequence = 0;
 
-	UPROPERTY() //for nullptr
-	class ABlasterPlayer* BlasterOwnerPlayer;
-	UPROPERTY() //for nullptr
-	class ABlasterPlayerController* BlasterOwnerPlayerController;
-
 	UPROPERTY(EditAnywhere)
 	EWeaponType WeaponType;
+
+	bool HasSetController;
 
 public:	
 	
@@ -186,5 +199,6 @@ public:
 	FORCEINLINE float GetShootingSpreadFactor() { return CrosshairsSpreadFactor; }
 	FORCEINLINE float GetWeaponTraceLength() { return FireTraceLength; }
 	FORCEINLINE bool UseScatter() { return bUseScatter; }
+	FORCEINLINE float GetDamage() const { return Damage; }
 	//FORCEINLINE EWeaponState GetWeaponState() { return WeaponState; }
 };

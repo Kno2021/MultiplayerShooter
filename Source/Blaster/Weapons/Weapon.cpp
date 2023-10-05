@@ -17,7 +17,7 @@
 // Sets default values
 AWeapon::AWeapon()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
 	bReplicates = true;
 	SetReplicateMovement(true);
 
@@ -79,13 +79,32 @@ void AWeapon::BeginPlay()
 void AWeapon::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
+	PollInit();
 }
+
+
+void AWeapon::PollInit()
+{
+	if (!HasSetController && HasAuthority() && BlasterOwnerPlayer && BlasterOwnerPlayer->Controller)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("THIS SHOULD BE CALLED ONCE MAX"));
+		BlasterOwnerPlayerController = BlasterOwnerPlayerController == nullptr ? Cast<ABlasterPlayerController>(BlasterOwnerPlayer->Controller) : BlasterOwnerPlayerController;
+		if (BlasterOwnerPlayerController && !BlasterOwnerPlayerController->HighPingDelegate.IsBound())
+		{
+			HasSetController = true;
+			BlasterOwnerPlayerController->HighPingDelegate.AddDynamic(this, &AWeapon::OnPingTooHigh);
+		}
+	}
+}
+
+
 
 void AWeapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-	DOREPLIFETIME(AWeapon, WeaponState);
+	DOREPLIFETIME(AWeapon, WeaponState); 
+	DOREPLIFETIME_CONDITION(AWeapon, bUseServerSideRewind, COND_OwnerOnly); 
+
 	//DOREPLIFETIME(AWeapon, Ammo);
 }
 
@@ -217,6 +236,17 @@ void AWeapon::SetWeaponState(EWeaponState State)
 }
 
 
+void AWeapon::OnPingTooHigh(bool bPingTooHigh)
+{
+	if (WeaponType == EWeaponType::EWT_RocketLauncher || WeaponType == EWeaponType::EWT_GrenadeLauncher)
+	{
+		//dont use server side rewind on these weapons
+		return;
+	}
+	//UE_LOG(LogTemp, Warning, TEXT("PING TOO HIGH"), bPingTooHigh);
+	bUseServerSideRewind = !bPingTooHigh;
+}
+
 //rep notifier called when weapon state is changed. To propagate to clients
 void AWeapon::OnRep_WeaponState()
 {
@@ -254,7 +284,7 @@ void AWeapon::OnWeaponStateSet()
 	}
 }
 
-
+//ADDED NOT LOCALLY CONTROLLED ACCORDING TO COMMENT ON CLASS 208
 void AWeapon::OnEquipped()
 {
 	ShowPickupWidget(false);
@@ -270,6 +300,16 @@ void AWeapon::OnEquipped()
 		WeaponMesh->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
 		WeaponMesh->WakeAllRigidBodies();
 	}
+
+	BlasterOwnerPlayer = BlasterOwnerPlayer == nullptr ? Cast<ABlasterPlayer>(GetOwner()) : BlasterOwnerPlayer;
+	if (BlasterOwnerPlayer /*&& bUseServerSideRewind*/) // class 208, removes this because if lag goes down we cant subscribe to delegate anymore
+	{
+		BlasterOwnerPlayerController = BlasterOwnerPlayerController == nullptr ? Cast<ABlasterPlayerController>(BlasterOwnerPlayer->Controller) : BlasterOwnerPlayerController;
+		if (BlasterOwnerPlayerController && HasAuthority() && !BlasterOwnerPlayerController->HighPingDelegate.IsBound() && !BlasterOwnerPlayer->IsLocallyControlled())
+		{
+			BlasterOwnerPlayerController->HighPingDelegate.AddDynamic(this, &AWeapon::OnPingTooHigh);
+		}
+	}
 }
 
 
@@ -284,6 +324,16 @@ void AWeapon::OnDropped()
 	WeaponMesh->SetCustomDepthStencilValue(CUSTOM_DEPTH_BLUE);
 	WeaponMesh->MarkRenderStateDirty();
 	EnableCustomDepth(true);
+
+	BlasterOwnerPlayer = BlasterOwnerPlayer == nullptr ? Cast<ABlasterPlayer>(GetOwner()) : BlasterOwnerPlayer;
+	if (BlasterOwnerPlayer && bUseServerSideRewind)
+	{
+		BlasterOwnerPlayerController = BlasterOwnerPlayerController == nullptr ? Cast<ABlasterPlayerController>(BlasterOwnerPlayer->Controller) : BlasterOwnerPlayerController;
+		if (BlasterOwnerPlayerController && HasAuthority() && BlasterOwnerPlayerController->HighPingDelegate.IsBound() && !BlasterOwnerPlayer->IsLocallyControlled())
+		{
+			BlasterOwnerPlayerController->HighPingDelegate.RemoveDynamic(this, &AWeapon::OnPingTooHigh);
+		}
+	}
 }
 
 void AWeapon::OnEquippedSecondary()
@@ -304,6 +354,16 @@ void AWeapon::OnEquippedSecondary()
 	WeaponMesh->SetCustomDepthStencilValue(CUSTOM_DEPTH_TAN);
 	WeaponMesh->MarkRenderStateDirty();
 	EnableCustomDepth(true);
+
+	BlasterOwnerPlayer = BlasterOwnerPlayer == nullptr ? Cast<ABlasterPlayer>(GetOwner()) : BlasterOwnerPlayer;
+	if (BlasterOwnerPlayer && bUseServerSideRewind)
+	{
+		BlasterOwnerPlayerController = BlasterOwnerPlayerController == nullptr ? Cast<ABlasterPlayerController>(BlasterOwnerPlayer->Controller) : BlasterOwnerPlayerController;
+		if (BlasterOwnerPlayerController && HasAuthority() && BlasterOwnerPlayerController->HighPingDelegate.IsBound() && !BlasterOwnerPlayer->IsLocallyControlled())
+		{
+			BlasterOwnerPlayerController->HighPingDelegate.RemoveDynamic(this, &AWeapon::OnPingTooHigh); 
+		}
+	}
 }
 
 
@@ -362,7 +422,7 @@ FVector AWeapon::TraceEndWithScatter(const FVector& HitTarget)
 	DrawDebugSphere(GetWorld(), EndLocation, 4.f, 12, FColor::Yellow, true);
 	//DrawDebugLine(GetWorld(), TraceStart, FVector(TraceStart + ToEndLocation * FireTraceLength / ToEndLocation.Size()), FColor::Cyan, true);
 	//return FVector(TraceStart + ToEndLocation * FireTraceLength / ToEndLocation.Size()); //to prevent overflow
-	DrawDebugLine(GetWorld(), TraceStart, FVector(TraceStart + ToEndLocation * TRACE_LENGTH / ToEndLocation.Size()), FColor::Cyan, true);
+	//DrawDebugLine(GetWorld(), TraceStart, FVector(TraceStart + ToEndLocation * TRACE_LENGTH / ToEndLocation.Size()), FColor::Cyan, true);
 	return FVector(TraceStart + ToEndLocation * TRACE_LENGTH / ToEndLocation.Size()); //to prevent overflow
 }
 
