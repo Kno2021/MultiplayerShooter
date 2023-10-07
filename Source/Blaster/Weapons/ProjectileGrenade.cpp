@@ -18,6 +18,7 @@ AProjectileGrenade::AProjectileGrenade()
 	ProjectileMovementComponent->SetIsReplicated(true);
 	ProjectileMovementComponent->bShouldBounce = true;
 	ProjectileMovementComponent->ProjectileGravityScale = ProjectileGravityScale;
+	Damage = 200; //added this because was doing only 10 damage as defined in .h
 }
 
 

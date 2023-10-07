@@ -18,6 +18,7 @@ class BLASTER_API ABlasterPlayerController : public APlayerController
 	GENERATED_BODY()
 
 public:
+
 	void SetHUDHealth(float Health, float MaxHealth);
 	void SetHUDShield(float Shield, float MaxShield);
 	void SetHUDScore(float Score);
@@ -32,7 +33,7 @@ public:
 	//void DisplayDeathMessage(bool Display);
 	virtual void OnPossess(APawn* InPawn) override;
 	virtual void Tick(float DeltaTime) override;
-	void CheckPing(float DeltaTime);
+	
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	virtual float GetServerTime(); //synced with server world clock
@@ -44,8 +45,12 @@ public:
 
 	FHighPingDelegate HighPingDelegate;
 
+	void BroadcastElimination(APlayerState* Attacker, APlayerState* Victim); //teacher says it's easier to use playerstate because are easy to identify players with.
+
 protected:
 	virtual void BeginPlay() override;
+
+	virtual void SetupInputComponent() override;
 
 	void SetHUDTime();
 	void PollInit();
@@ -78,11 +83,26 @@ protected:
 
 	void HighPingWarning();
 	void StopHighPingWarning();
+	void CheckPing(float DeltaTime);
+	
+	void ShowReturnToMainMenu();
+
+	UFUNCTION(Client, Reliable)
+	void ClientEliminationAnnouncement(APlayerState* Attacker, APlayerState* Victim);
 
 private:
-
 	UPROPERTY() //for nullptr
 	class ABlasterHUD* BlasterHUD;
+
+
+	//return to main menu
+	UPROPERTY(EditAnywhere, Category = HUD)
+	TSubclassOf<class UUserWidget> ReturnToMainMenuWidget;
+
+	UPROPERTY()
+	class UReturnToMainMenu* ReturnToMainMenu;
+
+	bool bReturnToMainMenuOpen = false;
 
 	UPROPERTY() //for nullptr
 	class ABlasterGameMode* BlasterGameMode;
@@ -131,9 +151,9 @@ private:
 	UFUNCTION(Server, Reliable)
 	void ServerReportPingStatus(bool bHighPing);
 
-	UPROPERTY(EditAnywhere)
-	float HighPingThreshold = 50.f;
-
 	float HighPingRunningTime = 0.f;
 	float PingAnimationRunningTime = 0.f;
+
+	UPROPERTY(EditAnywhere)
+	float HighPingThreshold = 50.f;
 };

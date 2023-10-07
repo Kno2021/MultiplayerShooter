@@ -24,6 +24,9 @@
 #include "Blaster/Weapons/WeaponTypes.h"
 #include "Components/BoxComponent.h"
 #include "Blaster/BlasterComponents/LagCompensationComponent.h"
+#include "NiagaraComponent.h"
+#include "NiagaraFunctionLibrary.h"
+#include "Blaster/GameState/BlasterGameState.h"
 
 ABlasterPlayer::ABlasterPlayer()
 {
@@ -189,6 +192,28 @@ void ABlasterPlayer::PostInitializeComponents()
 }
 
 
+void ABlasterPlayer::MulticastGainedTheLead_Implementation()
+{
+	if (CrownSystem == nullptr) return;
+	if (CrownComponent == nullptr)
+	{
+		CrownComponent = UNiagaraFunctionLibrary::SpawnSystemAttached(CrownSystem, GetCapsuleComponent(),
+			FName(), GetActorLocation() + FVector(0.f, 0.f, 110.f), GetActorRotation(), EAttachLocation::KeepWorldPosition, false);
+	}
+	if (CrownComponent)
+	{
+		CrownComponent->Activate();
+	}
+}
+
+void ABlasterPlayer::MulticastLostTheLead_Implementation()
+{
+	if (CrownComponent)
+	{
+		CrownComponent->DestroyComponent(); 
+	}
+}
+
 void ABlasterPlayer::BeginPlay()
 {
 	Super::BeginPlay();
@@ -206,6 +231,8 @@ void ABlasterPlayer::BeginPlay()
 	{
 		AttachedGrenade->SetVisibility(false);
 	}
+
+	
 }
 
 void ABlasterPlayer::Tick(float DeltaTime)
@@ -330,10 +357,22 @@ void ABlasterPlayer::PlayReloadMontage()
 	}
 }
 
+void ABlasterPlayer::PlaySwapWeaponMontage()
+{
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+	if (AnimInstance && SwapWeaponMontage /*&& !AnimInstance->IsAnyMontagePlaying()*/)
+	{
+		AnimInstance->Montage_Play(SwapWeaponMontage);
+		/*FName SectionName;
+		SectionName = bAiming ? FName("RifleAim") : FName("RifleHip");
+		AnimInstance->Montage_JumpToSection(SectionName);*/
+	}
+}
+
 void ABlasterPlayer::PlayEliminationMontage()
 {
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
-	if (AnimInstance && EliminationMontage && !AnimInstance->IsAnyMontagePlaying())
+	if (AnimInstance && EliminationMontage /*&& !AnimInstance->IsAnyMontagePlaying()*/)
 	{
 		AnimInstance->Montage_Play(EliminationMontage);
 		/*FName SectionName;
@@ -441,7 +480,7 @@ void ABlasterPlayer::OnRep_Shield(float LastShieldValue)
 	}
 }
 
-void ABlasterPlayer::Eliminated()
+void ABlasterPlayer::Eliminated(bool bPlayerLeftGame)
 {
 	if (Kombat)
 	{
@@ -455,12 +494,13 @@ void ABlasterPlayer::Eliminated()
 		}
 	}
 	
-	MulticastEliminated();
-	GetWorldTimerManager().SetTimer(EliminationTimer, this, &ABlasterPlayer::EliminationTimerFinished, EliminationDelay);
+	MulticastEliminated(bPlayerLeftGame);
+	//GetWorldTimerManager().SetTimer(EliminationTimer, this, &ABlasterPlayer::EliminationTimerFinished, EliminationDelay);
 }
 
-void ABlasterPlayer::MulticastEliminated_Implementation()
+void ABlasterPlayer::MulticastEliminated_Implementation(bool bPlayerLeftGame)
 {
+	bLeftGame = bPlayerLeftGame;
 	if (BlasterPlayerController)
 	{
 		BlasterPlayerController->SetHUDWeaponAmmo(0);
@@ -516,22 +556,43 @@ void ABlasterPlayer::MulticastEliminated_Implementation()
 	}
 
 	bool bHideSniperScope = IsLocallyControlled() && Kombat && Kombat->bAiming && Kombat->EquippedWeapon && Kombat->EquippedWeapon->GetWeaponType() == EWeaponType::EWT_SniperRifle;
-
 	if (bHideSniperScope)
 	{
-		ShowSniperScopeWidget(false);
+		//ShowSniperScopeWidget(false); maybe not needed. TEST
 	}
+
+	if (CrownComponent)
+	{
+		CrownComponent->DestroyComponent();
+	}
+
+	GetWorldTimerManager().SetTimer(EliminationTimer, this, &ABlasterPlayer::EliminationTimerFinished, EliminationDelay); 
 }
 
 void ABlasterPlayer::EliminationTimerFinished()
 {
 	ABlasterGameMode* BlasterGameMode = GetWorld()->GetAuthGameMode<ABlasterGameMode>();
-	if (BlasterGameMode)
+	if (BlasterGameMode && !bLeftGame)
 	{
 		BlasterGameMode->RequestRespawn(this, Controller);
 	}
+	if (bLeftGame && IsLocallyControlled())
+	{
+		OnLeftGame.Broadcast(); 
+	}
 
 	//GetMesh()->bPauseAnims = true; // i added this
+}
+
+void ABlasterPlayer::ServerLeaveGame_Implementation()
+{
+	ABlasterGameMode* BlasterGameMode = GetWorld()->GetAuthGameMode<ABlasterGameMode>();
+	BlasterPlayerState = BlasterPlayerState == nullptr? GetPlayerState<ABlasterPlayerState>() : BlasterPlayerState;
+
+	if (BlasterGameMode && BlasterPlayerState)
+	{
+		BlasterGameMode->PlayerLeftGame(BlasterPlayerState);
+	}
 }
 
 void ABlasterPlayer::DropOrDestroyWeapon(AWeapon* Weapon)
@@ -619,6 +680,12 @@ void ABlasterPlayer::PollInit()
 			BlasterPlayerState->AddToDeaths(0);
 			//BlasterPlayerState->DisplayDeathMessage(false);
 			BlasterPlayerState->UpdateDeathMessage(" ");
+
+			ABlasterGameState* BlasterGameState = Cast<ABlasterGameState>(UGameplayStatics::GetGameState(this)); 
+			if (BlasterGameState && BlasterGameState->TopScoringPlayers.Contains(BlasterPlayerState))
+			{
+				MulticastGainedTheLead();
+			}
 		}
 	}
 }
@@ -714,22 +781,30 @@ void ABlasterPlayer::ServerEquipButtonPressed_Implementation()
 
 void ABlasterPlayer::SwapWeaponButtonPressed()
 {
-	/*if (Kombat)
+	if (bDisableGameplay) return;
+	if (Kombat)
 	{
-		ServerSwapWeaponButtonPressed();
-	}*/
-	if (Kombat && Kombat->ShouldSwapWeapons())
-	{
-		//Kombat->SetAiming(false);
-		ServerSwapWeaponButtonPressed();
-		//ServerSetAimWhenSwap();
-		//Kombat->SwapWeapons();
+		if (Kombat->KombatState == ECombatState::ECS_Unoccupied) 
+		{
+			ServerSwapWeaponButtonPressed();
+		}
+
+		if (Kombat->ShouldSwapWeapons() && !HasAuthority() && Kombat->KombatState == ECombatState::ECS_Unoccupied)
+		{
+			Kombat->SetAiming(false);
+			//ServerSwapWeaponButtonPressed();
+			PlaySwapWeaponMontage();
+			Kombat->KombatState = ECombatState::ECS_SwappingWeapons;
+			bFinishedSwapping = false;
+			//ServerSetAimWhenSwap();
+		}
 	}
+	
 }
 
 void ABlasterPlayer::ServerSwapWeaponButtonPressed_Implementation()
 {
-	if (Kombat && Kombat->ShouldSwapWeapons())
+	if (Kombat && Kombat->ShouldSwapWeapons() && Kombat->KombatState == ECombatState::ECS_Unoccupied)
 	{
 		//Kombat->SetAiming(false);
 		Kombat->SwapWeapons();
@@ -780,9 +855,15 @@ void ABlasterPlayer::AimButtonHeld(float Value)
 	if (bDisableGameplay) return;
 	if (Kombat && Kombat->EquippedWeapon != nullptr)
 	{
+		//bAimButtonPressed = Value == 1.0f;
 		if (Kombat->KombatState == ECombatState::ECS_Reloading)
 		{
 			Kombat->SetAiming(false);
+			return;
+		}
+		if (Kombat->KombatState == ECombatState::ECS_SwappingWeapons)
+		{
+			//Kombat->SetAiming(false);
 			return;
 		}
 		if (Value == 1.f)
@@ -793,7 +874,6 @@ void ABlasterPlayer::AimButtonHeld(float Value)
 		{
 			Kombat->SetAiming(false);
 		}
-		bAimButtonPressed = Value == 1.0f;
 	}
 }
 

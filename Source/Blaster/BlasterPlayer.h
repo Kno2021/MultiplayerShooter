@@ -10,7 +10,7 @@
 #include "Blaster/BlasterTypes/CombatState.h"
 #include "BlasterPlayer.generated.h"
 
-
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLeftGame);
 
 UCLASS()
 class BLASTER_API ABlasterPlayer : public ACharacter, public IInteractWithCrosshairsInterface
@@ -23,14 +23,19 @@ public:
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void PostInitializeComponents() override;
+
 	void PlayFireMontage(bool bAiming);
 	void PlayReloadMontage();
+	void PlaySwapWeaponMontage();
 	void PlayEliminationMontage();
 	void PlayThrowGrenadeMontage();
+
 	virtual void OnRep_ReplicatedMovement() override;
-	void Eliminated();
+
+	void Eliminated(bool bPlayerLeftGame);
+
 	UFUNCTION(NetMulticast, Reliable)
-	void MulticastEliminated();
+	void MulticastEliminated(bool bPlayerLeftGame);
 
 	virtual void Destroyed() override;
 
@@ -46,6 +51,19 @@ public:
 	void SpawnDefaultWeapon();
 	UPROPERTY()
 	TMap<FName, class UBoxComponent*> HitCollisionBoxes;
+
+	bool bFinishedSwapping = false;
+
+	UFUNCTION(Server, Reliable)
+	void ServerLeaveGame();
+
+	FOnLeftGame OnLeftGame;
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastGainedTheLead();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastLostTheLead();
 
 protected:
 	virtual void BeginPlay() override;
@@ -143,6 +161,9 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = Camera)
 		class UCameraComponent* FollowCamera;
 
+	UPROPERTY() //for nullptr
+	class ABlasterPlayerState* BlasterPlayerState;
+
 	/*UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAcces = "true"))
 		class UWidgetComponent* OverheadWidget;*/
 
@@ -173,16 +194,19 @@ private:
 	class UAnimMontage* FireWeaponMontage;
 
 	UPROPERTY(EditAnywhere, Category = Combat)
-	class UAnimMontage* ReloadMontage;
+	UAnimMontage* ReloadMontage;
 
 	UPROPERTY(EditAnywhere, Category = Combat)
-	class UAnimMontage* HitReactMontage;
+	UAnimMontage* HitReactMontage;
 
 	UPROPERTY(EditAnywhere, Category = Combat)
-	class UAnimMontage* EliminationMontage;
+	UAnimMontage* EliminationMontage;
 
 	UPROPERTY(EditAnywhere, Category = Combat)
-	class UAnimMontage* ThrowGrenadeMontage;
+	UAnimMontage* ThrowGrenadeMontage;
+
+	UPROPERTY(EditAnywhere, Category = Combat)
+	UAnimMontage* SwapWeaponMontage;
 
 	void HideCameraIfCharacterClose();
 
@@ -229,6 +253,8 @@ private:
 	UPROPERTY(EditDefaultsOnly)
 	float EliminationDelay = 3.0f;
 
+	bool bLeftGame = false;
+
 	UPROPERTY(VisibleAnywhere)
 	UTimelineComponent* DissolveTimeline;
 
@@ -253,8 +279,7 @@ private:
 	UPROPERTY(EditAnywhere, Category = Elimination)
 	UMaterialInstance* DissolveMaterialInstance2;
 
-	//Elimination Bot
-
+	//Elimination Effects
 	UPROPERTY(EditAnywhere)
 	UParticleSystem* EliminationBotEffect;
 
@@ -264,9 +289,13 @@ private:
 	UPROPERTY(EditAnywhere)
 	class USoundCue* EliminationBotSound;
 
-	UPROPERTY() //for nullptr
-	class ABlasterPlayerState* BlasterPlayerState;
+	UPROPERTY(EditAnywhere)
+	class UNiagaraSystem* CrownSystem;
 
+	UPROPERTY() 
+	class UNiagaraComponent* CrownComponent; 
+
+	//grenade
 	UPROPERTY(VisibleAnywhere)
 	UStaticMeshComponent* AttachedGrenade;
 

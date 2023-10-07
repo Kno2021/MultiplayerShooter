@@ -6,6 +6,10 @@
 #include "GameFramework/PlayerController.h"
 #include "CharacterOverlay.h"
 #include "Announcement.h"
+#include "EliminationAnnouncement.h"
+#include "Components/HorizontalBox.h"
+#include "Blueprint/WidgetLayoutLibrary.h"
+#include "Components/CanvasPanelSlot.h"
 
 
 
@@ -58,6 +62,45 @@ void ABlasterHUD::AddAnnouncement()
 	}
 }
 
+void ABlasterHUD::AddEliminationAnnouncement(FString Attacker, FString Victim)
+{
+	OwningPlayer = OwningPlayer == nullptr ? GetOwningPlayerController() : OwningPlayer;
+	if (OwningPlayer && EliminationAnnouncementClass)
+	{
+		UEliminationAnnouncement* ElimAnnouncementWidget = CreateWidget<UEliminationAnnouncement>(OwningPlayer, EliminationAnnouncementClass);
+		if (ElimAnnouncementWidget)
+		{
+			ElimAnnouncementWidget->SetEliminationAnnouncementText(Attacker, Victim); 
+			ElimAnnouncementWidget->AddToViewport();
+			EliminationMessages.Add(ElimAnnouncementWidget);
+
+			for (auto Message : EliminationMessages) 
+			{
+				if (Message && Message->AnnouncementBox)
+				{
+					UCanvasPanelSlot* CanvasSlot = UWidgetLayoutLibrary::SlotAsCanvasSlot(Message->AnnouncementBox);
+					if (CanvasSlot) 
+					{
+						FVector2D Position = CanvasSlot->GetPosition(); 
+						FVector2D NewPosition(CanvasSlot->GetPosition().X, CanvasSlot->GetPosition().Y - CanvasSlot->GetSize().Y);
+						CanvasSlot->SetPosition(NewPosition);
+					}
+				}
+			}
+
+			FTimerHandle EliminationMessageTimer;
+			FTimerDelegate EliminationMessageDelegate;
+			EliminationMessageDelegate.BindUFunction(this, FName("EliminationAnnouncementTimerFinished"), ElimAnnouncementWidget);
+			GetWorldTimerManager().SetTimer(
+				EliminationMessageTimer,
+				EliminationMessageDelegate,
+				ELiminationAnnouncementTime,
+				false
+			);
+		}
+	}
+}
+
 void ABlasterHUD::DrawHUD()
 {
 	Super::DrawHUD();
@@ -99,11 +142,18 @@ void ABlasterHUD::DrawHUD()
 }
 
 
-
 void ABlasterHUD::DrawCrosshair(UTexture2D* Texture, FVector2D ViewPortCenter, FVector2D Spread, FLinearColor CrosshairColor)
 {
 	const float TextureWidth = Texture->GetSizeX();
 	const float TextureHeight = Texture->GetSizeY();
 	FVector2D TextureDrawPoint(ViewPortCenter.X - (TextureWidth * 0.5f) + Spread.X, ViewPortCenter.Y - (TextureHeight * 0.5f) + Spread.Y);
 	DrawTexture(Texture, TextureDrawPoint.X, TextureDrawPoint.Y, TextureWidth, TextureHeight, 0.f, 0.f, 1.f, 1.f, CrosshairColor);
+}
+
+void ABlasterHUD::EliminationAnnouncementTimerFinished(UEliminationAnnouncement* MessageToRemove)
+{
+	if (MessageToRemove)
+	{
+		MessageToRemove->RemoveFromParent();
+	}
 }

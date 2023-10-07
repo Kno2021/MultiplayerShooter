@@ -140,6 +140,7 @@ void UCombatComponent::ThrowGrenadeFinished()
 	//UE_LOG(LogTemp, Warning, TEXT("GRENADE ANIM FISHED"));
 }
 
+//called from anim blueprint
 void UCombatComponent::LaunchGrenade()
 {
 	ShowAttachedGrenade(false);
@@ -239,7 +240,7 @@ void UCombatComponent::Fire()
 				break;
 			case EFireType::EFT_Shotgun:
 				FireShotgun();
-				break;
+				break; 
 
 			default:
 				break;
@@ -258,7 +259,7 @@ void UCombatComponent::FireProjectileWeapon()
 	{
 		HitTarget = EquippedWeapon->UseScatter() ? EquippedWeapon->TraceEndWithScatter(HitTarget) : HitTarget;
 		if(!Character->HasAuthority()) LocalFire(HitTarget);
-		ServerFire(HitTarget);
+		ServerFire(HitTarget, EquippedWeapon->FireDelay);
 	}
 }
 
@@ -268,7 +269,7 @@ void UCombatComponent::FireHitScanWeapon()
 	{
 		HitTarget = EquippedWeapon->UseScatter() ? EquippedWeapon->TraceEndWithScatter(HitTarget) : HitTarget;
 		if (!Character->HasAuthority()) LocalFire(HitTarget);
-		ServerFire(HitTarget);
+		ServerFire(HitTarget, EquippedWeapon->FireDelay);
 	}
 }
 
@@ -282,17 +283,16 @@ void UCombatComponent::FireShotgun()
 			TArray<FVector_NetQuantize> HitTargets; 
 			Shotgun->ShotgunTraceEndWithScatter(HitTarget, HitTargets);
 			if (!Character->HasAuthority()) ShotgunLocalFire(HitTargets);
-			ServerShotgunFire(HitTargets);
+			ServerShotgunFire(HitTargets, EquippedWeapon->FireDelay);
 		}
 	}
 }
 
-
 bool UCombatComponent::CanFire()
 {
 	if (EquippedWeapon == nullptr) return false;
-	if (bLocallyReloading) return false;
 	if (!EquippedWeapon->IsEmpty() && bCanFire && KombatState == ECombatState::ECS_Reloading && EquippedWeapon->GetWeaponType() == EWeaponType::EWT_Shotgun) return true;
+	if (bLocallyReloading) return false;
 	return !EquippedWeapon->IsEmpty() && bCanFire && KombatState == ECombatState::ECS_Unoccupied;
 }
 
@@ -317,9 +317,19 @@ void UCombatComponent::FireTimerFinished()
 }
 
 
-void UCombatComponent::ServerFire_Implementation(const FVector_NetQuantize& TraceHitTarget)
+void UCombatComponent::ServerFire_Implementation(const FVector_NetQuantize& TraceHitTarget, float FireDelay)
 {
 	MulticastFire(TraceHitTarget);
+}
+
+bool UCombatComponent::ServerFire_Validate(const FVector_NetQuantize& TraceHitTarget, float FireDelay)
+{
+	if (EquippedWeapon)
+	{
+		bool bNearlyEqual = FMath::IsNearlyEqual(EquippedWeapon->FireDelay, FireDelay, 0.001f);
+		return bNearlyEqual;
+	}
+	return true;
 }
 
 void UCombatComponent::MulticastFire_Implementation(const FVector_NetQuantize& TraceHitTarget)
@@ -329,9 +339,19 @@ void UCombatComponent::MulticastFire_Implementation(const FVector_NetQuantize& T
 	LocalFire(TraceHitTarget);
 }
 
-void UCombatComponent::ServerShotgunFire_Implementation(const TArray<FVector_NetQuantize>& TraceHitTargets)
+void UCombatComponent::ServerShotgunFire_Implementation(const TArray<FVector_NetQuantize>& TraceHitTargets, float FireDelay)
 {
 	MulticastShotgunFire(TraceHitTargets);
+}
+
+bool UCombatComponent::ServerShotgunFire_Validate(const TArray<FVector_NetQuantize>& TraceHitTargets, float FireDelay)
+{
+	if (EquippedWeapon)
+	{
+		bool bNearlyEqual = FMath::IsNearlyEqual(EquippedWeapon->FireDelay, FireDelay, 0.001f);
+		return bNearlyEqual;
+	}
+	return true;
 }
 
 void UCombatComponent::MulticastShotgunFire_Implementation(const TArray<FVector_NetQuantize>& TraceHitTargets)
@@ -363,6 +383,7 @@ void UCombatComponent::ShotgunLocalFire(const TArray<FVector_NetQuantize>& Trace
 			Character->PlayFireMontage(bAiming);
 			Shotgun->FireShotgun(TraceHitTarget);
 			KombatState = ECombatState::ECS_Unoccupied;
+			bLocallyReloading = false;
 		}	
 	}
 }
@@ -390,20 +411,23 @@ void UCombatComponent::EquipWeapon(AWeapon* WeaponToEquip)
 	Character->bUseControllerRotationYaw = true;
 }
 
-bool UCombatComponent::ShouldSwapWeapons()
+//called from anim bluprint
+void UCombatComponent::FinishWeaponSwap()
 {
-	return (EquippedWeapon != nullptr && SecondaryWeapon != nullptr);
+	if (Character && Character->HasAuthority())
+	{
+		KombatState = ECombatState::ECS_Unoccupied;
+		
+	}
+	if (Character)
+	{
+		Character->bFinishedSwapping = true;
+	}
 }
 
-
-void UCombatComponent::SwapWeapons()
+//called from anim bluprint
+void UCombatComponent::FinishSwapAttachWeapons()
 {
-	if (KombatState != ECombatState::ECS_Unoccupied) return;
-
-	AWeapon* TempWeapon = EquippedWeapon;
-	EquippedWeapon = SecondaryWeapon;
-	SecondaryWeapon = TempWeapon;
-
 	SecondaryWeapon->SetWeaponState(EWeaponState::EWS_EquippedSecondary);
 	AttachActorToBack(SecondaryWeapon);
 	EquippedWeapon->SetWeaponState(EWeaponState::EWS_Equipped);
@@ -413,7 +437,28 @@ void UCombatComponent::SwapWeapons()
 	UpdateCarriedAmmo();
 	PlayEquipWeaponSound(EquippedWeapon);
 	ReloadEmptyWeapon();
-	
+}
+
+
+
+bool UCombatComponent::ShouldSwapWeapons()
+{
+	return (EquippedWeapon != nullptr && SecondaryWeapon != nullptr);
+}
+
+
+void UCombatComponent::SwapWeapons()
+{
+	if (KombatState != ECombatState::ECS_Unoccupied || Character == nullptr || KombatState == ECombatState::ECS_SwappingWeapons) return;
+
+	SetAiming(false);
+	Character->PlaySwapWeaponMontage(); //called from server swap button pressed
+	Character->bFinishedSwapping = false;
+	KombatState = ECombatState::ECS_SwappingWeapons;
+
+	AWeapon* TempWeapon = EquippedWeapon;
+	EquippedWeapon = SecondaryWeapon;
+	SecondaryWeapon = TempWeapon;
 }
 
 
@@ -573,7 +618,7 @@ void UCombatComponent::OnRep_CarriedAmmo()
 
 void UCombatComponent::Reload()
 {
-	if (CarriedAmmo > 0 && KombatState == ECombatState::ECS_Unoccupied && EquippedWeapon && !EquippedWeapon->IsFull() && !bLocallyReloading) //condition for when the clip is full
+	if (CarriedAmmo > 0 && KombatState == ECombatState::ECS_Unoccupied && EquippedWeapon && !EquippedWeapon->IsFull() && !bLocallyReloading && !Character->IsEliminated()) //condition for when the clip is full. Added last condition as test, check and delete.
 	{
 		ServerReload();
 		HandleReload();
@@ -636,6 +681,7 @@ void UCombatComponent::FinishReloading()
 		Fire();
 	}
 }
+
 
 void UCombatComponent::SetSpeeds(float BaseSpeed, float CrouchSpeed)
 {
@@ -741,13 +787,16 @@ void UCombatComponent::OnRep_KombatState()
 			ShowAttachedGrenade(true);
 		}
 		break;
-	case ECombatState::ECS_MAX:
+	case ECombatState::ECS_SwappingWeapons:
+		if (Character && !Character->IsLocallyControlled())
+		{
+			Character->PlaySwapWeaponMontage();
+		}
 		break;
 	default:
 		break;
 	}
 }
-
 
 void UCombatComponent::TraceUnderCrosshairs(FHitResult& TraceHitResult)
 {
@@ -888,13 +937,14 @@ void UCombatComponent::SetAiming(bool bIsAiming)
 	if (Character->IsLocallyControlled()) bAimButtonPressed = bIsAiming; //added from course
 	if (bIsAiming == bAiming) return;
 	bAiming = bIsAiming;
+	//if (Character->IsLocallyControlled()) bAimButtonPressed = bIsAiming; //added from course
 	ServerSetAiming(bIsAiming);
 	
 	if (Character->IsLocallyControlled())
 	{
 		if (EquippedWeapon->GetWeaponType() == EWeaponType::EWT_SniperRifle)
 		{
-			//UE_LOG(LogTemp, Warning, TEXT("Local y sniper"));
+			UE_LOG(LogTemp, Warning, TEXT("Local y sniper"));
 			Character->ShowSniperScopeWidget(bIsAiming);
 			bShowCrosshairs = !bIsAiming;
 		}

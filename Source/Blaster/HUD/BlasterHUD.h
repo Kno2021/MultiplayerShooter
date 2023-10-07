@@ -53,18 +53,35 @@ public:
 	class UAnnouncement* Announcement;
 
 	void AddAnnouncement();
+	void AddEliminationAnnouncement(FString Attacker, FString Victim);
 
 protected:
 
 	virtual void BeginPlay() override;
 
 private:
+
+	UPROPERTY()
+	class APlayerController* OwningPlayer;
+
 	FHUDPackage HUDPackage;
 
 	void DrawCrosshair(UTexture2D* Texture, FVector2D ViewPortCenter, FVector2D Spread, FLinearColor CrosshairColor);
 
 	UPROPERTY(EditAnywhere)
 	float CrosshairSpreadMax = 16.f;
+
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<class UEliminationAnnouncement> EliminationAnnouncementClass;
+
+	UPROPERTY(EditAnywhere)
+	float ELiminationAnnouncementTime = 5.0f;
+
+	UFUNCTION()
+	void EliminationAnnouncementTimerFinished(UEliminationAnnouncement* MessageToRemove);
+
+	UPROPERTY()
+	TArray<UEliminationAnnouncement*> EliminationMessages;
 
 public:
 

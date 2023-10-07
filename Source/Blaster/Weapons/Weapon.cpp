@@ -72,7 +72,6 @@ void AWeapon::BeginPlay()
 	AreaSphere->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Overlap);
 	AreaSphere->OnComponentBeginOverlap.AddDynamic(this, &AWeapon::OnSphereOverlap);
 	AreaSphere->OnComponentEndOverlap.AddDynamic(this, &AWeapon::OnSphereEndOverlap);
-	
 }
 
 
@@ -85,12 +84,13 @@ void AWeapon::Tick(float DeltaTime)
 
 void AWeapon::PollInit()
 {
-	if (!HasSetController && HasAuthority() && BlasterOwnerPlayer && BlasterOwnerPlayer->Controller)
+	if (!HasSetController && HasAuthority() && BlasterOwnerPlayer && BlasterOwnerPlayer->Controller && BlasterOwnerPlayerController == nullptr)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("THIS SHOULD BE CALLED ONCE MAX"));
 		BlasterOwnerPlayerController = BlasterOwnerPlayerController == nullptr ? Cast<ABlasterPlayerController>(BlasterOwnerPlayer->Controller) : BlasterOwnerPlayerController;
-		if (BlasterOwnerPlayerController && !BlasterOwnerPlayerController->HighPingDelegate.IsBound())
+		if (BlasterOwnerPlayerController && !BlasterOwnerPlayerController->HighPingDelegate.IsAlreadyBound(this, &AWeapon::OnPingTooHigh))
 		{
+			UE_LOG(LogTemp, Warning, TEXT("THIS SHOULD BE CALLED ONCE MAX"));
+			PrimaryActorTick.bCanEverTick = false;
 			HasSetController = true;
 			BlasterOwnerPlayerController->HighPingDelegate.AddDynamic(this, &AWeapon::OnPingTooHigh);
 		}
@@ -305,7 +305,7 @@ void AWeapon::OnEquipped()
 	if (BlasterOwnerPlayer /*&& bUseServerSideRewind*/) // class 208, removes this because if lag goes down we cant subscribe to delegate anymore
 	{
 		BlasterOwnerPlayerController = BlasterOwnerPlayerController == nullptr ? Cast<ABlasterPlayerController>(BlasterOwnerPlayer->Controller) : BlasterOwnerPlayerController;
-		if (BlasterOwnerPlayerController && HasAuthority() && !BlasterOwnerPlayerController->HighPingDelegate.IsBound() && !BlasterOwnerPlayer->IsLocallyControlled())
+		if (BlasterOwnerPlayerController && HasAuthority() && !BlasterOwnerPlayerController->HighPingDelegate.IsAlreadyBound(this, &AWeapon::OnPingTooHigh) && !BlasterOwnerPlayer->IsLocallyControlled())
 		{
 			BlasterOwnerPlayerController->HighPingDelegate.AddDynamic(this, &AWeapon::OnPingTooHigh);
 		}
@@ -329,7 +329,7 @@ void AWeapon::OnDropped()
 	if (BlasterOwnerPlayer && bUseServerSideRewind)
 	{
 		BlasterOwnerPlayerController = BlasterOwnerPlayerController == nullptr ? Cast<ABlasterPlayerController>(BlasterOwnerPlayer->Controller) : BlasterOwnerPlayerController;
-		if (BlasterOwnerPlayerController && HasAuthority() && BlasterOwnerPlayerController->HighPingDelegate.IsBound() && !BlasterOwnerPlayer->IsLocallyControlled())
+		if (BlasterOwnerPlayerController && HasAuthority() && BlasterOwnerPlayerController->HighPingDelegate.IsAlreadyBound(this, &AWeapon::OnPingTooHigh) && !BlasterOwnerPlayer->IsLocallyControlled())
 		{
 			BlasterOwnerPlayerController->HighPingDelegate.RemoveDynamic(this, &AWeapon::OnPingTooHigh);
 		}
@@ -359,7 +359,7 @@ void AWeapon::OnEquippedSecondary()
 	if (BlasterOwnerPlayer && bUseServerSideRewind)
 	{
 		BlasterOwnerPlayerController = BlasterOwnerPlayerController == nullptr ? Cast<ABlasterPlayerController>(BlasterOwnerPlayer->Controller) : BlasterOwnerPlayerController;
-		if (BlasterOwnerPlayerController && HasAuthority() && BlasterOwnerPlayerController->HighPingDelegate.IsBound() && !BlasterOwnerPlayer->IsLocallyControlled())
+		if (BlasterOwnerPlayerController && HasAuthority() && BlasterOwnerPlayerController->HighPingDelegate.IsAlreadyBound(this, &AWeapon::OnPingTooHigh) && !BlasterOwnerPlayer->IsLocallyControlled())
 		{
 			BlasterOwnerPlayerController->HighPingDelegate.RemoveDynamic(this, &AWeapon::OnPingTooHigh); 
 		}
