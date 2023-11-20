@@ -45,6 +45,7 @@ void UCombatComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out
 	DOREPLIFETIME(UCombatComponent, KombatState);
 	DOREPLIFETIME(UCombatComponent, Grenades);
 	DOREPLIFETIME(UCombatComponent, bSpeedBuffed);
+	DOREPLIFETIME(UCombatComponent, bHoldingTheFlag);
 }
 
 
@@ -89,7 +90,7 @@ void UCombatComponent::ThrowGrenade()
 	if (Grenades == 0) return;
 	if (KombatState != ECombatState::ECS_Unoccupied || EquippedWeapon == nullptr) return;
 	KombatState = ECombatState::ECS_ThrowingGrenade;
-	UE_LOG(LogTemp, Warning, TEXT("THROW GRENADE"));
+	//UE_LOG(LogTemp, Warning, TEXT("THROW GRENADE"));
 	if (Character)
 	{
 		Character->PlayThrowGrenadeMontage();
@@ -192,7 +193,6 @@ void UCombatComponent::UpdateHUDGrenades()
 	}
 }
 
-
 void UCombatComponent::ServerLaunchGrenade_Implementation(const FVector_NetQuantize& Target)
 {
 	if (Character && GrenadeClass && Character->GetAttachedGrenade())
@@ -253,8 +253,6 @@ void UCombatComponent::Fire()
 
 void UCombatComponent::FireProjectileWeapon()
 {
-	/*FHitResult HitResult;
-		TraceUnderCrosshairs(HitResult);*/
 	if (EquippedWeapon && Character)
 	{
 		HitTarget = EquippedWeapon->UseScatter() ? EquippedWeapon->TraceEndWithScatter(HitTarget) : HitTarget;
@@ -296,7 +294,6 @@ bool UCombatComponent::CanFire()
 	return !EquippedWeapon->IsEmpty() && bCanFire && KombatState == ECombatState::ECS_Unoccupied;
 }
 
-
 void UCombatComponent::StartFireTimer()
 {
 	if (EquippedWeapon == nullptr || Character == nullptr) return;
@@ -316,7 +313,6 @@ void UCombatComponent::FireTimerFinished()
 	ReloadEmptyWeapon();
 }
 
-
 void UCombatComponent::ServerFire_Implementation(const FVector_NetQuantize& TraceHitTarget, float FireDelay)
 {
 	MulticastFire(TraceHitTarget);
@@ -335,7 +331,6 @@ bool UCombatComponent::ServerFire_Validate(const FVector_NetQuantize& TraceHitTa
 void UCombatComponent::MulticastFire_Implementation(const FVector_NetQuantize& TraceHitTarget)
 {
 	if (Character && Character->IsLocallyControlled() && !Character->HasAuthority()) return;
-
 	LocalFire(TraceHitTarget);
 }
 
@@ -393,6 +388,20 @@ void UCombatComponent::EquipWeapon(AWeapon* WeaponToEquip)
 {
 	if (Character == nullptr || WeaponToEquip == nullptr) return;
 	if (KombatState != ECombatState::ECS_Unoccupied) return;
+
+	if (WeaponToEquip->GetWeaponType() == EWeaponType::EWT_Flag)
+	{
+		/*Character->GetCharacterMovement()->bOrientRotationToMovement = true;
+		Character->bUseControllerRotationYaw = false;*/
+		
+		WeaponToEquip->SetWeaponState(EWeaponState::EWS_Equipped);
+		AttachFlagToBack(WeaponToEquip);
+		WeaponToEquip->SetOwner(Character);
+		bHoldingTheFlag = true;
+		TheFlag = WeaponToEquip;
+		return;
+	}
+
 	if (EquippedWeapon && SecondaryWeapon == nullptr)
 	{
 		if (EquippedWeapon->GetWeaponType() == WeaponToEquip->GetWeaponType()) return;
@@ -428,6 +437,10 @@ void UCombatComponent::FinishWeaponSwap()
 //called from anim bluprint
 void UCombatComponent::FinishSwapAttachWeapons()
 {
+	AWeapon* TempWeapon = EquippedWeapon;
+	EquippedWeapon = SecondaryWeapon;
+	SecondaryWeapon = TempWeapon;
+
 	SecondaryWeapon->SetWeaponState(EWeaponState::EWS_EquippedSecondary);
 	AttachActorToBack(SecondaryWeapon);
 	EquippedWeapon->SetWeaponState(EWeaponState::EWS_Equipped);
@@ -456,9 +469,9 @@ void UCombatComponent::SwapWeapons()
 	Character->bFinishedSwapping = false;
 	KombatState = ECombatState::ECS_SwappingWeapons;
 
-	AWeapon* TempWeapon = EquippedWeapon;
+	/*AWeapon* TempWeapon = EquippedWeapon; //I MOVED THIS OVER TO FINISH SWAP ATTACH WEAPONS FUNCTION
 	EquippedWeapon = SecondaryWeapon;
-	SecondaryWeapon = TempWeapon;
+	SecondaryWeapon = TempWeapon;*/
 }
 
 
@@ -553,6 +566,7 @@ void UCombatComponent::UpdateCarriedAmmo()
 	Controller = Controller == nullptr ? Cast<ABlasterPlayerController>(Character->Controller) : Controller;
 	if (Controller)
 	{
+		//UE_LOG(LogTemp, Warning, TEXT("UPDATE CARRIED AMMO"));
 		Controller->SetHUDCarriedAmmo(CarriedAmmo);
 	}
 }
@@ -590,6 +604,17 @@ void UCombatComponent::AttachActorToBack(AActor* ActorToAttach)
 	}
 }
 
+void UCombatComponent::AttachFlagToBack(AActor* ActorToAttach)
+{
+	if (Character == nullptr || Character->GetMesh() == nullptr || ActorToAttach == nullptr) return;
+	const USkeletalMeshSocket* SecondarySocket = Character->GetMesh()->GetSocketByName(FName("FlagSocket"));
+
+	if (SecondarySocket) 
+	{
+		SecondarySocket->AttachActor(ActorToAttach, Character->GetMesh()); 
+	}
+}
+
 void UCombatComponent::DropEquippedWeapon()
 {
 	if (EquippedWeapon)
@@ -605,6 +630,7 @@ void UCombatComponent::OnRep_CarriedAmmo()
 	Controller = Controller == nullptr ? Cast<ABlasterPlayerController>(Character->Controller) : Controller;
 	if (Controller)
 	{
+		//UE_LOG(LogTemp, Warning, TEXT("REDP CARRIED AMMO"));
 		Controller->SetHUDCarriedAmmo(CarriedAmmo);
 	}
 	bool bJumpToShotgunEnd = KombatState == ECombatState::ECS_Reloading && EquippedWeapon != nullptr
@@ -725,6 +751,7 @@ void UCombatComponent::UpdateAmmoValues()
 	Controller = Controller == nullptr ? Cast<ABlasterPlayerController>(Character->Controller) : Controller;
 	if (Controller)
 	{
+		//UE_LOG(LogTemp, Warning, TEXT("UPDATE AMMO VALUES"));
 		Controller->SetHUDCarriedAmmo(CarriedAmmo);
 	}
 
@@ -944,7 +971,7 @@ void UCombatComponent::SetAiming(bool bIsAiming)
 	{
 		if (EquippedWeapon->GetWeaponType() == EWeaponType::EWT_SniperRifle)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("Local y sniper"));
+			//UE_LOG(LogTemp, Warning, TEXT("Local y sniper"));
 			Character->ShowSniperScopeWidget(bIsAiming);
 			bShowCrosshairs = !bIsAiming;
 		}
@@ -990,8 +1017,6 @@ void UCombatComponent::OnRep_Aiming()
 	}
 }
 
-
-
 void UCombatComponent::InitializeCarriedAmmo()
 {
 	//CarriedAmmoMap.Emplace(EWeaponType::EWT_AssaultRifle, StartingARAmmo);
@@ -1003,3 +1028,7 @@ void UCombatComponent::InitializeCarriedAmmo()
 	//CarriedAmmoMap.Emplace(EWeaponType::EWT_GrenadeLauncher, StartingGrenadeLauncherAmmo);
 }
 
+void UCombatComponent::OnRep_HoldingTheFlag()
+{
+
+}

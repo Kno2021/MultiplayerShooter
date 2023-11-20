@@ -85,7 +85,7 @@ public:
 
 	FServerSideRewindResult ProjectileServerSideRewind(ABlasterPlayer* HitCharacter,
 		const FVector_NetQuantize& TraceStart,
-		const FVector_NetQuantize100& InitialVelocity, float HitTime, float GravityScale);
+		const FVector_NetQuantize100& InitialVelocity, float HitTime, class AProjectileWeapon* Weapon);
 
     //Shotgun
 	FShotgunServerSideRewindResult ShotgunServerSideRewind(const TArray<ABlasterPlayer*>& HitCharacters, const FVector_NetQuantize& TraceStart,
@@ -97,7 +97,7 @@ public:
 
 	UFUNCTION(Server, Reliable) 
 	void ProjectileServerScoreRequest(ABlasterPlayer* HitCharacter, const FVector_NetQuantize& TraceStart,
-		const FVector_NetQuantize100& InitialVelocity, float HitTime, float GravityScale);
+		const FVector_NetQuantize100& InitialVelocity, float HitTime, AProjectileWeapon* Weapon); 
 
 	UFUNCTION(Server, Reliable)
 	void ShotgunServerScoreRequest(const TArray<ABlasterPlayer*>& HitCharacters, const FVector_NetQuantize& TraceStart,
@@ -121,7 +121,7 @@ protected:
 	//projectile
 	FServerSideRewindResult ProjectileConfirmHit(const FFramePackage& Package, ABlasterPlayer* HitCharacter,
 		const FVector_NetQuantize& TraceStart,
-		const FVector_NetQuantize100& InitialVelocity, float HitTime, float GravityScale); 
+		const FVector_NetQuantize100& InitialVelocity, float HitTime, AProjectileWeapon* Weapon);
 
 
 	//Shotgun 

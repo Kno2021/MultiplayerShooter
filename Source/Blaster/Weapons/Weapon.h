@@ -6,6 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "Net/UnrealNetwork.h"
 #include "WeaponTypes.h"
+#include "Blaster/BlasterTypes/Team.h"
 #include "Weapon.generated.h"
 
 UENUM(BlueprintType)
@@ -45,7 +46,7 @@ public:
 	void SetHUDWeaponType(EWeaponType Type);
 	void ShowPickupWidget(bool bShowWidget);
 	virtual void Fire(const FVector& HitTarget); //passing const reference is more effective than passing just the Fvector because it'll create a copy
-	void Dropped();
+	virtual void Dropped();
 	void AddAmmo(int32 AmmoToAdd);
 	FVector TraceEndWithScatter(const FVector& HitTarget);
 
@@ -112,6 +113,9 @@ protected:
 
 	UPROPERTY(EditAnywhere)
 	float Damage = 20.f;
+
+	UPROPERTY(EditAnywhere)
+	float HeadShotDamage = 40.f;
 
 	UPROPERTY(Replicated, EditAnywhere)
 	bool bUseServerSideRewind = false;
@@ -182,6 +186,9 @@ private:
 	UPROPERTY(EditAnywhere)
 	EWeaponType WeaponType;
 
+	UPROPERTY(EditAnywhere)
+	ETeam Team;
+
 	bool HasSetController;
 
 public:	
@@ -189,6 +196,7 @@ public:
 	void SetWeaponState(EWeaponState State);
 	FORCEINLINE USphereComponent* GetAreaSphere() const { return AreaSphere; }
 	FORCEINLINE USkeletalMeshComponent* GetWeaponMesh() const { return WeaponMesh; }
+	FORCEINLINE UWidgetComponent* GetPickupWidget() const { return PickupWidget; }
 	FORCEINLINE float GetZoomedFOV() const { return ZoomedFOV; }
 	FORCEINLINE float GetZoomedInterpSpeed() const { return ZoomedInterpSpeed; }
 	bool IsEmpty();
@@ -200,5 +208,7 @@ public:
 	FORCEINLINE float GetWeaponTraceLength() { return FireTraceLength; }
 	FORCEINLINE bool UseScatter() { return bUseScatter; }
 	FORCEINLINE float GetDamage() const { return Damage; }
+	FORCEINLINE float GetHeadShotDamage() const { return HeadShotDamage; }
+	FORCEINLINE ETeam GetTeam() const { return Team; }
 	//FORCEINLINE EWeaponState GetWeaponState() { return WeaponState; }
 };

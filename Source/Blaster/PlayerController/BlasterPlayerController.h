@@ -18,7 +18,6 @@ class BLASTER_API ABlasterPlayerController : public APlayerController
 	GENERATED_BODY()
 
 public:
-
 	void SetHUDHealth(float Health, float MaxHealth);
 	void SetHUDShield(float Shield, float MaxShield);
 	void SetHUDScore(float Score);
@@ -33,12 +32,15 @@ public:
 	//void DisplayDeathMessage(bool Display);
 	virtual void OnPossess(APawn* InPawn) override;
 	virtual void Tick(float DeltaTime) override;
-	
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	void HideTeamScores();
+	void InitTeamScores();
+	void SetHUDReadTeamScore(int32 RedScore);
+	void SetHUDBlueTeamScore(int32 BlueScore);
 
 	virtual float GetServerTime(); //synced with server world clock
 	virtual void ReceivedPlayer() override; //sync with server clock as soon as possible
-	void OnMatchStateSet(FName State);
+	void OnMatchStateSet(FName State, bool bTeamsMatch = false); 
 	void HandleCooldown();
 
 	float SingleTripTime = 0.f;
@@ -73,13 +75,13 @@ protected:
 
 	float TimeSyncTunningTime = 0.f;
 	void CheckTimeSync(float DeltaTime);
-	void HandleMatchHasStarted();
+	void HandleMatchHasStarted(bool bTeamsMatch = false);
 
 	UFUNCTION(server, Reliable)
 	void ServerCheckMatchState(); //server rpc
 
 	UFUNCTION(client, Reliable)
-	void ClientJoinMidGame(FName State, float Warmup, float Match, float Cooldown, float StartingTime);
+	void ClientJoinMidGame(FName State, float Warmup, float Match, float Cooldown, float StartingTime, bool bShowScore);
 
 	void HighPingWarning();
 	void StopHighPingWarning();
@@ -89,6 +91,15 @@ protected:
 
 	UFUNCTION(Client, Reliable)
 	void ClientEliminationAnnouncement(APlayerState* Attacker, APlayerState* Victim);
+
+	UPROPERTY(ReplicatedUsing = OnRep_ShowTeamScores)
+	bool bShowTeamScores = false;
+
+	UFUNCTION()
+	void OnRep_ShowTeamScores();
+
+	FString GetInfoText(const TArray<class ABlasterPlayerState*>& Players);
+	FString GetTeamsInfoText(class ABlasterGameState* BlasterGameState);
 
 private:
 	UPROPERTY() //for nullptr
@@ -129,7 +140,9 @@ private:
 	bool bInitializeDefeats = false;
 	bool bInitializeGrenades = false;
 	bool bInitializeShield = false;
-	
+	bool bInitializeCarriedAmmo = false;
+	bool bInitializeWeaponAmmo = false;
+
 	float HUDHealth;
 	float HUDMaxHealth;
 	float HUDScore;
@@ -139,8 +152,7 @@ private:
 	int32 HUDGrenades;
 	float HUDCarriedAmmo;
 	float HUDWeaponAmmo;
-	bool bInitializeCarriedAmmo = false;
-	bool bInitializeWeaponAmmo = false;
+	
 
 	UPROPERTY(EditAnywhere)
 	float HighPingDuration = 5.f;

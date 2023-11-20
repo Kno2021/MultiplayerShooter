@@ -160,10 +160,10 @@ FServerSideRewindResult ULagCompensationComponent::ServerSideRewind(ABlasterPlay
 	return ConfirmHit(FrameToCheck, HitCharacter, TraceStart, HitLocation);
 }
 
-FServerSideRewindResult ULagCompensationComponent::ProjectileServerSideRewind(ABlasterPlayer* HitCharacter, const FVector_NetQuantize& TraceStart, const FVector_NetQuantize100& InitialVelocity, float HitTime, float GravityScale)
+FServerSideRewindResult ULagCompensationComponent::ProjectileServerSideRewind(ABlasterPlayer* HitCharacter, const FVector_NetQuantize& TraceStart, const FVector_NetQuantize100& InitialVelocity, float HitTime, AProjectileWeapon* Weapon)
 {
 	FFramePackage FrameToCheck = GetFrameToCheck(HitCharacter, HitTime); 
-	return ProjectileConfirmHit(FrameToCheck, HitCharacter, TraceStart, InitialVelocity, HitTime, GravityScale); 
+	return ProjectileConfirmHit(FrameToCheck, HitCharacter, TraceStart, InitialVelocity, HitTime, Weapon); 
 }
 
 void ULagCompensationComponent::ServerScoreRequest_Implementation(ABlasterPlayer* HitCharacter, const FVector_NetQuantize& TraceStart, const FVector_NetQuantize& HitLocation, float HitTime, AWeapon* DamageCauser)
@@ -172,18 +172,23 @@ void ULagCompensationComponent::ServerScoreRequest_Implementation(ABlasterPlayer
 
 	if (Character && HitCharacter && DamageCauser && Confirm.bHitConfirmed)
 	{
-		UGameplayStatics::ApplyDamage(HitCharacter, DamageCauser->GetDamage(),
+		const float Damage = Confirm.bHeadShot ? DamageCauser->GetHeadShotDamage() : DamageCauser->GetDamage();
+
+		UGameplayStatics::ApplyDamage(HitCharacter, Damage, 
 			Character->Controller, DamageCauser, UDamageType::StaticClass());
 	}
 }
 
-void ULagCompensationComponent::ProjectileServerScoreRequest_Implementation(ABlasterPlayer* HitCharacter, const FVector_NetQuantize& TraceStart, const FVector_NetQuantize100& InitialVelocity, float HitTime, float GravityScale)
+void ULagCompensationComponent::ProjectileServerScoreRequest_Implementation(ABlasterPlayer* HitCharacter, const FVector_NetQuantize& TraceStart, const FVector_NetQuantize100& InitialVelocity, float HitTime, AProjectileWeapon* Weapon)
 {
-	FServerSideRewindResult Confirm = ProjectileServerSideRewind(HitCharacter, TraceStart, InitialVelocity, HitTime, GravityScale);
+	FServerSideRewindResult Confirm = ProjectileServerSideRewind(HitCharacter, TraceStart, InitialVelocity, HitTime, Weapon);
 
-	if (Character && HitCharacter && Confirm.bHitConfirmed)
+	if (Character && HitCharacter && Confirm.bHitConfirmed && Character->GetEquippedWeapon() && Weapon) 
 	{
-		UGameplayStatics::ApplyDamage(HitCharacter, Character->GetEquippedWeapon()->GetDamage(),
+		//AWeapon* Weapon = Character->GetEquippedWeapon();
+		const float Damage = Confirm.bHeadShot ? Weapon->GetHeadShotDamage() : Weapon->GetDamage();
+
+		UGameplayStatics::ApplyDamage(HitCharacter, Damage, 
 			Character->Controller, Character->GetEquippedWeapon(), UDamageType::StaticClass());
 	}
 }
@@ -199,7 +204,7 @@ void ULagCompensationComponent::ShotgunServerScoreRequest_Implementation(const T
 		float TotalDamage = 0.f;
 		if (Confirm.HeadShots.Contains(HitCharacter))
 		{
-			float HeadShotDamage = Confirm.HeadShots[HitCharacter] * Character->GetEquippedWeapon()->GetDamage(); 
+			float HeadShotDamage = Confirm.HeadShots[HitCharacter] * Character->GetEquippedWeapon()->GetHeadShotDamage();  
 			TotalDamage += HeadShotDamage;
 		}
 
@@ -311,7 +316,7 @@ FServerSideRewindResult ULagCompensationComponent::ConfirmHit(const FFramePackag
 	return FServerSideRewindResult{ false, false };
 }
 
-FServerSideRewindResult ULagCompensationComponent::ProjectileConfirmHit(const FFramePackage& Package, ABlasterPlayer* HitCharacter, const FVector_NetQuantize& TraceStart, const FVector_NetQuantize100& InitialVelocity, float HitTime, float GravityScale)
+FServerSideRewindResult ULagCompensationComponent::ProjectileConfirmHit(const FFramePackage& Package, ABlasterPlayer* HitCharacter, const FVector_NetQuantize& TraceStart, const FVector_NetQuantize100& InitialVelocity, float HitTime, AProjectileWeapon* Weapon)
 {
 	if (HitCharacter == nullptr) return FServerSideRewindResult();
 
@@ -336,7 +341,7 @@ FServerSideRewindResult ULagCompensationComponent::ProjectileConfirmHit(const FF
 	PathParams.ActorsToIgnore.Add(GetOwner());  
 	//PathParams.DrawDebugTime = 5.f;  
 	//PathParams.DrawDebugType = EDrawDebugTrace::ForDuration;  
-	PathParams.OverrideGravityZ = GravityScale * GetWorld()->GetDefaultGravityZ();
+	PathParams.OverrideGravityZ = Weapon->GetGravityScale() * GetWorld()->GetDefaultGravityZ();
 	
 	FPredictProjectilePathResult PathResult; 
 	UGameplayStatics::PredictProjectilePath(this, PathParams, PathResult); 

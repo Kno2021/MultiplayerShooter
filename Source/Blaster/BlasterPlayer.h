@@ -8,6 +8,7 @@
 #include "Blaster/Interfaces/InteractWithCrosshairsInterface.h"
 #include "Components/TimelineComponent.h"
 #include "Blaster/BlasterTypes/CombatState.h"
+#include "BlasterTypes/Team.h"
 #include "BlasterPlayer.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLeftGame);
@@ -65,6 +66,8 @@ public:
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastLostTheLead();
 
+	void SetTeamColor(ETeam Team);
+
 protected:
 	virtual void BeginPlay() override;
 	void MoveForward(float Value);
@@ -88,6 +91,8 @@ protected:
 	void FireButtonReleased();
 	void PlayHitReactMontage();
 	void DropOrDestroyWeapon(AWeapon* Weapon);
+	void SetSpawnPoint();
+	void OnPlayerStateInitialized();
 
 	bool bAimButtonPressed;
 
@@ -208,7 +213,7 @@ private:
 	UPROPERTY(EditAnywhere, Category = Combat)
 	UAnimMontage* SwapWeaponMontage;
 
-	void HideCameraIfCharacterClose();
+	void HideCharacterIfCameraClose();
 
 	UPROPERTY(EditAnywhere)
 	float CameraThreshold = 200.f;
@@ -274,10 +279,43 @@ private:
 	UMaterialInstanceDynamic* DynamicDissolveMaterialInstance2;
 
 	//Material instance set on blueprint, used with the dynamic instance
-	UPROPERTY(EditAnywhere, Category = Elimination)
+	UPROPERTY(VisibleAnywhere, Category = Elimination)
 	UMaterialInstance* DissolveMaterialInstance1;
-	UPROPERTY(EditAnywhere, Category = Elimination)
+	UPROPERTY(VisibleAnywhere, Category = Elimination)
 	UMaterialInstance* DissolveMaterialInstance2;
+
+	//Team Colors
+
+	UPROPERTY(EditAnywhere, Category = Elimination)
+	UMaterialInstance* RedDissolveMaterialInstance1;
+
+	UPROPERTY(EditAnywhere, Category = Elimination)
+	UMaterialInstance* RedDissolveMaterialInstance2;
+
+	UPROPERTY(EditAnywhere, Category = Elimination)
+	UMaterialInstance* RedMaterial1;
+
+	UPROPERTY(EditAnywhere, Category = Elimination)
+	UMaterialInstance* RedMaterial2;
+
+
+	UPROPERTY(EditAnywhere, Category = Elimination)
+	UMaterialInstance* BlueDissolveMaterialInstance1;
+
+	UPROPERTY(EditAnywhere, Category = Elimination)
+	UMaterialInstance* BlueDissolveMaterialInstance2;
+
+	UPROPERTY(EditAnywhere, Category = Elimination)
+	UMaterialInstance* BlueMaterial1;
+
+	UPROPERTY(EditAnywhere, Category = Elimination)
+	UMaterialInstance* BlueMaterial2;
+
+	UPROPERTY(EditAnywhere, Category = Elimination)
+	UMaterialInstance* OriginalMaterial1;
+
+	UPROPERTY(EditAnywhere, Category = Elimination)
+	UMaterialInstance* OriginalMaterial2;
 
 	//Elimination Effects
 	UPROPERTY(EditAnywhere)
@@ -303,6 +341,9 @@ private:
 
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<AWeapon> DefaultWeaponClass;
+
+	UPROPERTY()
+	class ABlasterGameMode* BlasterGameMode;
 
 public:	
 	
@@ -334,4 +375,7 @@ public:
 	FORCEINLINE UBuffComponent* GetBuffComponent() const { return BuffComponent; }
 	bool IsLocallyReloading();
 	FORCEINLINE ULagCompensationComponent* GetLagCompensationComponent() const { return LagCompensationComponent; }
+	FORCEINLINE bool IsHoldingTheFlag() const;
+	ETeam GetTeam();
+	void SetHoldingTheFlag(bool bHolding);
 };

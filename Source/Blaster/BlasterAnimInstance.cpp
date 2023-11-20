@@ -79,8 +79,8 @@ void UBlasterAnimInstance::NativeUpdateAnimation(float DeltaTime)
 			FVector MuzzleX(FRotationMatrix(MuzzleTipTransform.GetRotation().Rotator()).GetUnitAxis(EAxis::X));
 			
 			//DrawDebugLine(GetWorld(), MuzzleTipTransform.GetLocation(), MuzzleTipTransform.GetLocation() + MuzzleX * 10000.f, FColor::Red);
-			DrawDebugLine(GetWorld(), MuzzleTipTransform.GetLocation(), MuzzleTipTransform.GetLocation() + MuzzleTipTransform.GetRotation().Vector() * 1000.f, FColor::Red);
-			DrawDebugLine(GetWorld(), MuzzleTipTransform.GetLocation(), BlasterCharacter->GetHitTarget(), FColor::Yellow);
+			//DrawDebugLine(GetWorld(), MuzzleTipTransform.GetLocation(), MuzzleTipTransform.GetLocation() + MuzzleTipTransform.GetRotation().Vector() * 1000.f, FColor::Red);
+			//DrawDebugLine(GetWorld(), MuzzleTipTransform.GetLocation(), BlasterCharacter->GetHitTarget(), FColor::Yellow);
 		}
 	}
 

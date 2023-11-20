@@ -49,11 +49,6 @@ void ABlasterHUD::AddCharacterOverlay()
 
 void ABlasterHUD::AddAnnouncement()
 {
-	/*if (Announcement)
-	{
-		Announcement->AddToViewport();
-		return;
-	}*/
 	APlayerController* PlayerController = GetOwningPlayerController();
 	if (PlayerController && AnnouncementClass && !Announcement)
 	{

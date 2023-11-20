@@ -123,6 +123,7 @@ protected:
 	void AttachActorToRightHand(AActor* ActorToAttach);
 	void AttachActorToLeftHand(AActor* ActorToAttach);
 	void AttachActorToBack(AActor* ActorToAttach);
+	void AttachFlagToBack(AActor* ActorToAttach);
 	void PlayEquipWeaponSound(AWeapon* WeaponToEquip);
 	void ReloadEmptyWeapon();
 	void ShowAttachedGrenade(bool bShowGrenade);
@@ -273,6 +274,15 @@ private:
 	void OnRep_Grenades();
 
 	void UpdateHUDGrenades();
+
+	UPROPERTY(ReplicatedUsing = OnRep_HoldingTheFlag)
+	bool bHoldingTheFlag = false;
+
+	UFUNCTION()
+	void OnRep_HoldingTheFlag();
+
+	UPROPERTY()
+	AWeapon* TheFlag;
 
 public:	
 	

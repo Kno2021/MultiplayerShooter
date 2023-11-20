@@ -22,6 +22,7 @@ ABlasterGameMode::ABlasterGameMode()
 
 void ABlasterGameMode::BeginPlay()
 {
+	Super::BeginPlay();
 	LevelStartingTime = GetWorld()->GetTimeSeconds();
 }
 
@@ -66,11 +67,15 @@ void ABlasterGameMode::OnMatchStateSet()
 		ABlasterPlayerController* BlasterPlayer = Cast<ABlasterPlayerController>(*i);
 		if (BlasterPlayer)
 		{
-			BlasterPlayer->OnMatchStateSet(MatchState);
+			BlasterPlayer->OnMatchStateSet(MatchState, bTeamsMatch);
 		}
 	}
 }
 
+float ABlasterGameMode::CalculateDamage(AController* Attacker, AController* Victim, float BaseDamage)
+{
+	return BaseDamage;
+}
 
 void ABlasterGameMode::PlayerEliminated(ABlasterPlayer* EliminatedCharacter, ABlasterPlayerController* VictimController, ABlasterPlayerController* AttackerController)
 {
@@ -202,5 +207,4 @@ void ABlasterGameMode::PlayerLeftGame(ABlasterPlayerState* PlayerLeaving)
 		CharacterLeaving->Eliminated(true);
 	}
 }
-
 

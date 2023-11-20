@@ -25,7 +25,9 @@ private:
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<AProjectile> ServerSideRewindProjectileClass;
 
+	float ProjectileGravityScale = 1.0f;
+
 public:
 
-
+	FORCEINLINE float GetGravityScale() const { return ProjectileGravityScale; }
 };

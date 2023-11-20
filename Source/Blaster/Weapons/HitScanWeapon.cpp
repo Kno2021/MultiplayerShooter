@@ -25,7 +25,6 @@ void AHitScanWeapon::Fire(const FVector& HitTarget)
 	{
 		FTransform SocketTransform = MuzzleFlashSocket->GetSocketTransform(GetWeaponMesh());
 		FVector Start = SocketTransform.GetLocation();
-		//FVector End = Start + (HitTarget - Start) * 1.25f;
 
 		FHitResult FireHit;
 		WeaponTraceHit(Start, HitTarget, FireHit);
@@ -33,12 +32,14 @@ void AHitScanWeapon::Fire(const FVector& HitTarget)
 		ABlasterPlayer* BlasterCharacter = Cast<ABlasterPlayer>(FireHit.GetActor());
 		if (BlasterCharacter && InstigatorController)
 		{
-			bool bCauseAuthDamage = !bUseServerSideRewind || OwnerPawn->IsLocallyControlled();
-			if (HasAuthority() && bCauseAuthDamage /*&& !bUseServerSideRewind*/)//on server 
+			bool bCauseAuthDamage = !bUseServerSideRewind || OwnerPawn->IsLocallyControlled(); 
+			if (HasAuthority() && bCauseAuthDamage)//on server 
 			{
+				const float DamageToCause = FireHit.BoneName.ToString() == FString("head") ? HeadShotDamage : Damage;
 				//this is for to apply dagame only in the server.
-				UGameplayStatics::ApplyDamage(BlasterCharacter, Damage, InstigatorController, this, UDamageType::StaticClass());
+				UGameplayStatics::ApplyDamage(BlasterCharacter, DamageToCause, InstigatorController, this, UDamageType::StaticClass()); 
 			}
+
 			if(!HasAuthority() && bUseServerSideRewind)
 			{
 				BlasterOwnerPlayer = BlasterOwnerPlayer == nullptr ? Cast<ABlasterPlayer>(OwnerPawn) : BlasterOwnerPlayer;
@@ -46,11 +47,11 @@ void AHitScanWeapon::Fire(const FVector& HitTarget)
 				if (BlasterOwnerPlayer && BlasterOwnerPlayerController && BlasterOwnerPlayer->GetLagCompensationComponent() && BlasterOwnerPlayer->IsLocallyControlled())
 				{
 					//UE_LOG(LogTemp, Warning, TEXT("CLIENT SERVER SIDE REWIND"));
-					BlasterOwnerPlayer->GetLagCompensationComponent()->ServerScoreRequest(
-						BlasterCharacter,
-						Start,
-						HitTarget, //we could pass FireHit.ImpactPoint as well 
-						BlasterOwnerPlayerController->GetServerTime() - BlasterOwnerPlayerController->SingleTripTime,
+					BlasterOwnerPlayer->GetLagCompensationComponent()->ServerScoreRequest( 
+						BlasterCharacter, 
+						Start, 
+						HitTarget, //we could pass FireHit.ImpactPoint as well  
+						BlasterOwnerPlayerController->GetServerTime() - BlasterOwnerPlayerController->SingleTripTime,  
 						this
 						);
 				}
@@ -84,15 +85,20 @@ void AHitScanWeapon::WeaponTraceHit(const FVector& TraceStart, const FVector& Hi
 
 	if (World)
 	{
-		FVector End = /*bUseScatter? TraceEndWithScatter(TraceStart, HitTarget) : */TraceStart + (HitTarget - TraceStart) * 1.25f;
+		FVector End = TraceStart + (HitTarget - TraceStart) * 1.25f;
 		World->LineTraceSingleByChannel(OutHit, TraceStart, End, ECollisionChannel::ECC_Visibility);
 		FVector BeamEnd = End;
+
 		if (OutHit.bBlockingHit)
 		{
 			BeamEnd = OutHit.ImpactPoint;
 		}
+		else
+		{
+			OutHit.ImpactPoint = End;
+		}
 
-		//DrawDebugSphere(GetWorld(), BeamEnd, 16.f, 12, FColor::Orange, true);
+		DrawDebugSphere(GetWorld(), BeamEnd, 16.f, 12, FColor::Orange, true);
 
 		if (BeamParticles)
 		{

@@ -12,6 +12,7 @@ void ABlasterPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 
 	DOREPLIFETIME(ABlasterPlayerState, Deaths);
 	DOREPLIFETIME(ABlasterPlayerState, DeathMessageVariable);
+	DOREPLIFETIME(ABlasterPlayerState, Team);
 }
 
 void ABlasterPlayerState::AddToScore(float ScoreAmount)
@@ -70,7 +71,25 @@ void ABlasterPlayerState::OnRep_Deaths()
 	}
 }
 
+void ABlasterPlayerState::SetTeam(ETeam TeamToSet)
+{
+	Team = TeamToSet;
 
+	ABlasterPlayer* BlasterPlayer = Cast<ABlasterPlayer>(GetPawn());
+	if (BlasterPlayer)
+	{
+		BlasterPlayer->SetTeamColor(Team);
+	}
+}
+
+void ABlasterPlayerState::OnRep_Team()
+{
+	ABlasterPlayer* BlasterPlayer = Cast<ABlasterPlayer>(GetPawn()); 
+	if (BlasterPlayer) 
+	{
+		BlasterPlayer->SetTeamColor(Team); 
+	}
+}
 
 void ABlasterPlayerState::UpdateDeathMessage(FString DeathMessage)
 {
@@ -98,20 +117,3 @@ void ABlasterPlayerState::OnRep_DeathMessage()
 		}
 	}
 }
-
-//void ABlasterPlayerState::DisplayDeathMessage(bool Display)
-//{
-//	Character = Character == nullptr ? Cast<ABlasterPlayer>(GetPawn()) : Character;
-//	if (Character)
-//	{
-//		Controller = Controller == nullptr ? Cast<ABlasterPlayerController>(Character->Controller) : Controller;
-//		if (Controller)
-//		{
-//			Controller->DisplayDeathMessage(Display);
-//		}
-//	}
-//}
-
-
-
-

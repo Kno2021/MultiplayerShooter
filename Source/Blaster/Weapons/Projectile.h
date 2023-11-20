@@ -24,10 +24,19 @@ public:
 
 	UPROPERTY(EditAnywhere)
 	float InitialSpeed = 15000.f;
-	float Damage = 10.f;
+
+	//Only set this for Grenades and Rockets
+	UPROPERTY(EditAnywhere) //used for grenade projectiles 
+	float Damage = 20.f;
+
+	// Does not apply to Grenades or Rockets
+	UPROPERTY(EditAnywhere)
+	float HeadShotDamage = 40.f; //used when using server side rewind, thats why we are using this variable here and in weapon
 
 	UPROPERTY(EditAnywhere)
 	float ProjectileGravityScale = 0.2f;
+
+	void SetOwnerWeapon(class AProjectileWeapon* Weapon);
 
 protected:
 	virtual void BeginPlay() override;
@@ -67,6 +76,8 @@ protected:
 	float DamageOuterRadius = 500.f;
 
 	FTimerHandle DestroyTimer;
+
+	AProjectileWeapon* OwnerWeapon;
 
 private:
 	

@@ -28,6 +28,12 @@ AProjectile::AProjectile()
 	CollisionBox->SetCollisionResponseToChannel(ECC_SkeletalMesh, ECollisionResponse::ECR_Block);
 }
 
+void AProjectile::SetOwnerWeapon(AProjectileWeapon* Weapon)
+{
+	if (Weapon == nullptr) return;
+	OwnerWeapon = Weapon;
+}
+
 void AProjectile::BeginPlay()
 {
 	Super::BeginPlay();

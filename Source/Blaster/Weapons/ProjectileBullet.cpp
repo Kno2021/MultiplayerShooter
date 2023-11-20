@@ -65,14 +65,15 @@ void AProjectileBullet::BeginPlay()
 void AProjectileBullet::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
 	ABlasterPlayer* OwnerCharacter = Cast<ABlasterPlayer>(GetOwner());
-	if (OwnerCharacter)
+	if (OwnerCharacter && OwnerWeapon)
 	{
 		ABlasterPlayerController* OwnerController = Cast<ABlasterPlayerController>(OwnerCharacter->Controller);
 		if (OwnerController)
 		{
 			if (OwnerCharacter->HasAuthority() && !bUseServerSideRewind)
 			{
-				UGameplayStatics::ApplyDamage(OtherActor, Damage, OwnerController, this, UDamageType::StaticClass());
+				const float DamageToCause = Hit.BoneName.ToString() == FString("head") ? HeadShotDamage : Damage; 
+				UGameplayStatics::ApplyDamage(OtherActor, DamageToCause, OwnerController, this, UDamageType::StaticClass());
 				Super::OnHit(HitComp, OtherActor, OtherComp, NormalImpulse, Hit);
 				return;
 			}
@@ -80,7 +81,7 @@ void AProjectileBullet::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, 
 			ABlasterPlayer* HitCharacter = Cast<ABlasterPlayer>(OtherActor);
 			if (bUseServerSideRewind && OwnerCharacter->GetLagCompensationComponent() && OwnerCharacter->IsLocallyControlled() && HitCharacter)
 			{
-				OwnerCharacter->GetLagCompensationComponent()->ProjectileServerScoreRequest(HitCharacter, TraceStart, InitialVelocity, OwnerController->GetServerTime() - OwnerController->SingleTripTime, ProjectileGravityScale);
+				OwnerCharacter->GetLagCompensationComponent()->ProjectileServerScoreRequest(HitCharacter, TraceStart, InitialVelocity, OwnerController->GetServerTime() - OwnerController->SingleTripTime, OwnerWeapon);
 			}
 			
 		}

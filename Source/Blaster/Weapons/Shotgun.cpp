@@ -27,6 +27,7 @@ void AShotgun::FireShotgun(const TArray<FVector_NetQuantize>& HitTargets)
 
 		//map containing a player and the number of times that was hit
 		TMap<ABlasterPlayer*, uint32> HitMap;
+		TMap<ABlasterPlayer*, uint32> HeadShotHitMap;
 		for (FVector_NetQuantize HitTarget : HitTargets)
 		{
 			FHitResult FireHit;
@@ -36,15 +37,23 @@ void AShotgun::FireShotgun(const TArray<FVector_NetQuantize>& HitTargets)
 			if (BlasterCharacter) 
 			{
 				//this is for to apply dagame only in the server.
+				const bool bHeadShot = FireHit.BoneName.ToString() == FString("head");
 
-				if (HitMap.Contains(BlasterCharacter)) 
+				if (bHeadShot)
 				{
-					HitMap[BlasterCharacter]++; 
+					if (HeadShotHitMap.Contains(BlasterCharacter)) 
+						HeadShotHitMap[BlasterCharacter]++; 
+					else
+						HeadShotHitMap.Emplace(BlasterCharacter, 1); 
 				}
 				else
 				{
-					HitMap.Emplace(BlasterCharacter, 1); 
-				}
+					if (HitMap.Contains(BlasterCharacter)) 
+						HitMap[BlasterCharacter]++; 
+					else
+						HitMap.Emplace(BlasterCharacter, 1); 
+				}			
+
 				if (ImpactParticles)
 				{
 					UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), ImpactParticles, FireHit.ImpactPoint, FireHit.ImpactNormal.Rotation()); 
@@ -59,25 +68,50 @@ void AShotgun::FireShotgun(const TArray<FVector_NetQuantize>& HitTargets)
 
 		TArray<ABlasterPlayer*> HitCharacters;
 
-		for (auto HitPair : HitMap) 
-		{
-			if (HitPair.Key && /*HasAuthority() && */InstigatorController) 
-			{
-				bool bCauseAuthDamage = !bUseServerSideRewind || OwnerPawn->IsLocallyControlled();
-				if (HasAuthority() && bCauseAuthDamage /*&& !bUseServerSideRewind*/)//on server 
-				{
-					//this is for to apply dagame only in the server.
-					UGameplayStatics::ApplyDamage(
-						HitPair.Key, //Character that was hit
-						Damage * HitPair.Value, //Multiply Damage by number of times hit
-						InstigatorController, this, UDamageType::StaticClass()); 
-				} 
+		//total damage map
+		TMap<ABlasterPlayer*, float> DamageMap;  
 
-				HitCharacters.Add(HitPair.Key);			
+		//body shot damage
+		for (TPair<ABlasterPlayer*, uint32> HitPair : HitMap)  
+		{
+			if (HitPair.Key) 
+			{
+				DamageMap.Emplace(HitPair.Key, HitPair.Value * Damage);
+				HitCharacters.AddUnique(HitPair.Key);	
 			}
 		}
 
-		if (!HasAuthority() && bUseServerSideRewind)
+		//head shot damage
+		for (TPair<ABlasterPlayer*, uint32> HeadShotHitPair : HeadShotHitMap) 
+		{
+			if (HeadShotHitPair.Key)
+			{
+				if (DamageMap.Contains(HeadShotHitPair.Key))
+					DamageMap[HeadShotHitPair.Key] += HeadShotHitPair.Value * HeadShotDamage; 
+				else
+					DamageMap.Emplace(HeadShotHitPair.Key, HeadShotHitPair.Value * HeadShotDamage);
+
+				HitCharacters.AddUnique(HeadShotHitPair.Key);
+			}
+		}
+
+		for (TPair<ABlasterPlayer*, float> DamagePair : DamageMap)  
+		{
+			if (DamagePair.Key && InstigatorController)
+			{
+				bool bCauseAuthDamage = !bUseServerSideRewind || OwnerPawn->IsLocallyControlled(); 
+				if (HasAuthority() && bCauseAuthDamage /*&& !bUseServerSideRewind*/)//on server  
+				{
+					//this is for to apply dagame only in the server.
+					UGameplayStatics::ApplyDamage(
+						DamagePair.Key, //Character that was hit
+						DamagePair.Value, //Damage aded in for loops above
+						InstigatorController, this, UDamageType::StaticClass());
+				}
+			}
+		}
+
+		if (!HasAuthority() && bUseServerSideRewind) 
 		{
 			BlasterOwnerPlayer = BlasterOwnerPlayer == nullptr ? Cast<ABlasterPlayer>(OwnerPawn) : BlasterOwnerPlayer;
 			BlasterOwnerPlayerController = BlasterOwnerPlayerController == nullptr ? Cast<ABlasterPlayerController>(InstigatorController) : BlasterOwnerPlayerController;
@@ -110,7 +144,7 @@ void AShotgun::ShotgunTraceEndWithScatter(const FVector& HitTarget, TArray<FVect
 		const FVector RandVector = UKismetMathLibrary::RandomUnitVector() * FMath::FRandRange(0.f, SphereRadius);
 		const FVector EndLocation = SphereCenter + RandVector;
 		FVector ToEndLocation = EndLocation - TraceStart;
-		ToEndLocation = TraceStart + ToEndLocation * TRACE_LENGTH / ToEndLocation.Size();
+		ToEndLocation = TraceStart + ToEndLocation * TRACE_LENGTH / ToEndLocation.Size(); 
 
 		HitTargets.Add(ToEndLocation);
 	}

@@ -27,6 +27,7 @@
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
 #include "Blaster/GameState/BlasterGameState.h"
+#include "Blaster/PlayerStart/TeamPlayerStart.h"
 
 ABlasterPlayer::ABlasterPlayer()
 {
@@ -197,7 +198,7 @@ void ABlasterPlayer::MulticastGainedTheLead_Implementation()
 	if (CrownSystem == nullptr) return;
 	if (CrownComponent == nullptr)
 	{
-		CrownComponent = UNiagaraFunctionLibrary::SpawnSystemAttached(CrownSystem, GetCapsuleComponent(),
+		CrownComponent = UNiagaraFunctionLibrary::SpawnSystemAttached(CrownSystem, GetMesh(),
 			FName(), GetActorLocation() + FVector(0.f, 0.f, 110.f), GetActorRotation(), EAttachLocation::KeepWorldPosition, false);
 	}
 	if (CrownComponent)
@@ -214,13 +215,41 @@ void ABlasterPlayer::MulticastLostTheLead_Implementation()
 	}
 }
 
+void ABlasterPlayer::SetTeamColor(ETeam Team)
+{
+	if (GetMesh() == nullptr || OriginalMaterial1 == nullptr || OriginalMaterial2 == nullptr) return;
+	switch (Team)
+	{
+	case ETeam::ET_RedTeam:
+		GetMesh()->SetMaterial(0, RedMaterial2);
+		GetMesh()->SetMaterial(1, RedMaterial1);
+		DissolveMaterialInstance1 = RedDissolveMaterialInstance1;
+		DissolveMaterialInstance2 = RedDissolveMaterialInstance2;
+		break;
+	case ETeam::ET_BlueTeam:
+		GetMesh()->SetMaterial(0, BlueMaterial2);
+		GetMesh()->SetMaterial(1, BlueMaterial1);
+		DissolveMaterialInstance1 = BlueDissolveMaterialInstance1;
+		DissolveMaterialInstance2 = BlueDissolveMaterialInstance2;
+		break;
+	case ETeam::ET_NoTeam:
+		GetMesh()->SetMaterial(0, OriginalMaterial2);
+		GetMesh()->SetMaterial(1, OriginalMaterial1);
+		DissolveMaterialInstance1 = BlueDissolveMaterialInstance1;
+		DissolveMaterialInstance2 = BlueDissolveMaterialInstance2;
+		break;
+	default:
+		break;
+	}
+}
+
 void ABlasterPlayer::BeginPlay()
 {
 	Super::BeginPlay();
-	SpawnDefaultWeapon();
+	/*SpawnDefaultWeapon();
 	UpdateHUDAmmo();
 	UpdateHUDHealth();
-	UpdateHUDShield();
+	UpdateHUDShield();*/
 	
 
 	if (HasAuthority())
@@ -240,9 +269,39 @@ void ABlasterPlayer::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 
 	RotateInPlace(DeltaTime);
-	HideCameraIfCharacterClose();
+	HideCharacterIfCameraClose();
 	PollInit();
 }
+
+void ABlasterPlayer::PollInit()
+{
+	if (BlasterPlayerState == nullptr)
+	{
+		BlasterPlayerState = GetPlayerState<ABlasterPlayerState>();
+		if (BlasterPlayerState)
+		{
+			OnPlayerStateInitialized();
+			ABlasterGameState* BlasterGameState = Cast<ABlasterGameState>(UGameplayStatics::GetGameState(this));
+			if (BlasterGameState && BlasterGameState->TopScoringPlayers.Contains(BlasterPlayerState))
+			{
+				MulticastGainedTheLead();
+			}
+		}
+	}
+
+	if (BlasterPlayerController == nullptr)
+	{
+		BlasterPlayerController = BlasterPlayerController == nullptr ? Cast<ABlasterPlayerController>(Controller) : BlasterPlayerController;
+		if (BlasterPlayerController)
+		{
+			SpawnDefaultWeapon();
+			UpdateHUDAmmo();
+			UpdateHUDHealth();
+			UpdateHUDShield();
+		}
+	}
+}
+
 
 void ABlasterPlayer::RotateInPlace(float DeltaTime)
 {
@@ -300,7 +359,6 @@ void ABlasterPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 	PlayerInputComponent->BindAction("Reload", IE_Pressed, this, &ABlasterPlayer::ReloadButtonPressed);
 	PlayerInputComponent->BindAction("GrenadeThrow", IE_Pressed, this, &ABlasterPlayer::ThrowGrenadeButtonPressed);
 }
-
 
 void ABlasterPlayer::PlayFireMontage(bool bAiming)
 {
@@ -418,20 +476,21 @@ void ABlasterPlayer::PlayHitReactMontage()
 
 void ABlasterPlayer::ReceiveDamage(AActor* DamagedActor, float Damage, const UDamageType* DamageType, AController* InstigatorController, AActor* DamageCauser)
 {
-	if (bEliminated) return;
+	BlasterGameMode = BlasterGameMode == nullptr? GetWorld()->GetAuthGameMode<ABlasterGameMode>() : BlasterGameMode;
+	if (bEliminated || BlasterGameMode == nullptr) return;
+
+	Damage = BlasterGameMode->CalculateDamage(InstigatorController, Controller, Damage); 
 	float DamageToHealth = Damage;
+
 	if (Shield > 0.f)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("SHIELD GREATER THAN ZERO"));
 		if (Shield >= Damage)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("SHIELD GREATER THAN DAMAGE"));
 			Shield = FMath::Clamp(Shield - Damage, 0.f, MaxShield); 
 			DamageToHealth = 0.f;
 		}
 		else
 		{
-			UE_LOG(LogTemp, Warning, TEXT("SHIELD LESS THAN DAMAGE"));
 			DamageToHealth = FMath::Clamp(DamageToHealth - Shield, 0.f, Damage);
 			Shield = 0.f;
 		}
@@ -443,7 +502,6 @@ void ABlasterPlayer::ReceiveDamage(AActor* DamagedActor, float Damage, const UDa
 	
 	if (Health == 0.f)
 	{
-		ABlasterGameMode* BlasterGameMode = GetWorld()->GetAuthGameMode<ABlasterGameMode>();
 		if (BlasterGameMode)
 		{
 			BlasterPlayerController = BlasterPlayerController == nullptr ? Cast<ABlasterPlayerController>(Controller) : BlasterPlayerController;
@@ -491,6 +549,10 @@ void ABlasterPlayer::Eliminated(bool bPlayerLeftGame)
 		if (Kombat->SecondaryWeapon)
 		{
 			DropOrDestroyWeapon(Kombat->SecondaryWeapon);
+		}
+		if (Kombat->TheFlag)
+		{
+			Kombat->TheFlag->Dropped();
 		}
 	}
 	
@@ -571,7 +633,7 @@ void ABlasterPlayer::MulticastEliminated_Implementation(bool bPlayerLeftGame)
 
 void ABlasterPlayer::EliminationTimerFinished()
 {
-	ABlasterGameMode* BlasterGameMode = GetWorld()->GetAuthGameMode<ABlasterGameMode>();
+	BlasterGameMode = BlasterGameMode == nullptr ? GetWorld()->GetAuthGameMode<ABlasterGameMode>() : BlasterGameMode;
 	if (BlasterGameMode && !bLeftGame)
 	{
 		BlasterGameMode->RequestRespawn(this, Controller);
@@ -586,7 +648,7 @@ void ABlasterPlayer::EliminationTimerFinished()
 
 void ABlasterPlayer::ServerLeaveGame_Implementation()
 {
-	ABlasterGameMode* BlasterGameMode = GetWorld()->GetAuthGameMode<ABlasterGameMode>();
+	BlasterGameMode = BlasterGameMode == nullptr ? GetWorld()->GetAuthGameMode<ABlasterGameMode>() : BlasterGameMode;
 	BlasterPlayerState = BlasterPlayerState == nullptr? GetPlayerState<ABlasterPlayerState>() : BlasterPlayerState;
 
 	if (BlasterGameMode && BlasterPlayerState)
@@ -608,6 +670,39 @@ void ABlasterPlayer::DropOrDestroyWeapon(AWeapon* Weapon)
 	}
 }
 
+void ABlasterPlayer::OnPlayerStateInitialized()
+{ 
+	BlasterPlayerState->AddToScore(0.f); 
+	BlasterPlayerState->AddToDeaths(0); 
+	BlasterPlayerState->UpdateDeathMessage(" "); 
+	SetTeamColor(BlasterPlayerState->GetTeam()); 
+	SetSpawnPoint(); 
+}
+
+void ABlasterPlayer::SetSpawnPoint()
+{
+	if (HasAuthority() && BlasterPlayerState->GetTeam() != ETeam::ET_NoTeam && BlasterPlayerState->GetTeam() != ETeam::ET_MAX)
+	{
+		TArray<AActor*> PlayerStarts;
+		UGameplayStatics::GetAllActorsOfClass(this, ATeamPlayerStart::StaticClass(), PlayerStarts);
+		TArray<ATeamPlayerStart*> TeamPlayerStarts;
+
+		for (auto Start : PlayerStarts) 
+		{
+			ATeamPlayerStart* TeamStart = Cast<ATeamPlayerStart>(Start);
+			if (TeamStart && TeamStart->Team == BlasterPlayerState->GetTeam()) 
+			{
+				TeamPlayerStarts.Add(TeamStart);
+			}
+		}
+		if (TeamPlayerStarts.Num() > 0)
+		{
+			ATeamPlayerStart* ChosenPlayerStart = TeamPlayerStarts[FMath::RandRange(0, TeamPlayerStarts.Num() - 1)];
+			SetActorLocationAndRotation(ChosenPlayerStart->GetActorLocation(), ChosenPlayerStart->GetActorRotation());
+		}
+	}
+}
+
 void ABlasterPlayer::Destroyed()
 {
 	Super::Destroyed();
@@ -615,7 +710,7 @@ void ABlasterPlayer::Destroyed()
 	{
 		EliminationBotComponent->DestroyComponent();
 	}
-	ABlasterGameMode* BlasterGameMode = Cast<ABlasterGameMode>(UGameplayStatics::GetGameMode(this));
+	BlasterGameMode = BlasterGameMode == nullptr ? GetWorld()->GetAuthGameMode<ABlasterGameMode>() : BlasterGameMode;
 	bool bMatchNotInProgress = BlasterGameMode && BlasterGameMode->GetMatchState() != MatchState::InProgress;
 	if (Kombat && Kombat->EquippedWeapon && bMatchNotInProgress)
 	{
@@ -646,6 +741,7 @@ void ABlasterPlayer::UpdateHUDAmmo()
 	BlasterPlayerController = BlasterPlayerController == nullptr ? Cast<ABlasterPlayerController>(Controller) : BlasterPlayerController;
 	if (BlasterPlayerController && Kombat && Kombat->EquippedWeapon)
 	{
+		//UE_LOG(LogTemp, Warning, TEXT("UPDATE HUD AMMO"));
 		BlasterPlayerController->SetHUDCarriedAmmo(Kombat->CarriedAmmo);
 		BlasterPlayerController->SetHUDWeaponAmmo(Kombat->EquippedWeapon->GetAmmo());
 	}
@@ -653,7 +749,7 @@ void ABlasterPlayer::UpdateHUDAmmo()
 
 void ABlasterPlayer::SpawnDefaultWeapon()
 {
-	ABlasterGameMode* BlasterGameMode = Cast<ABlasterGameMode>(UGameplayStatics::GetGameMode(this));
+	BlasterGameMode = BlasterGameMode == nullptr ? GetWorld()->GetAuthGameMode<ABlasterGameMode>() : BlasterGameMode;
 	UWorld* World = GetWorld();
 
 	if (BlasterGameMode && World && !bEliminated && DefaultWeaponClass)
@@ -665,27 +761,6 @@ void ABlasterPlayer::SpawnDefaultWeapon()
 		{
 			Kombat->EquipWeapon(StartingWeapon);			
 			Kombat->UpdateWeaponType();
-		}
-	}
-}
-
-void ABlasterPlayer::PollInit()
-{
-	if (BlasterPlayerState == nullptr)
-	{
-		BlasterPlayerState = GetPlayerState<ABlasterPlayerState>();
-		if (BlasterPlayerState)
-		{
-			BlasterPlayerState->AddToScore(0.f);
-			BlasterPlayerState->AddToDeaths(0);
-			//BlasterPlayerState->DisplayDeathMessage(false);
-			BlasterPlayerState->UpdateDeathMessage(" ");
-
-			ABlasterGameState* BlasterGameState = Cast<ABlasterGameState>(UGameplayStatics::GetGameState(this)); 
-			if (BlasterGameState && BlasterGameState->TopScoringPlayers.Contains(BlasterPlayerState))
-			{
-				MulticastGainedTheLead();
-			}
 		}
 	}
 }
@@ -888,7 +963,7 @@ void ABlasterPlayer::AimButtonPressed()
 			Kombat->SetAiming(false);
 			return;
 		}*/
-		UE_LOG(LogTemp, Warning, TEXT("AIMING"));
+		//UE_LOG(LogTemp, Warning, TEXT("AIMING"));
 		Kombat->SetAiming(true);
 	}
 }
@@ -1047,7 +1122,7 @@ void ABlasterPlayer::TurnInPlace(float DeltaTime)
 	}
 }
 
-void ABlasterPlayer::HideCameraIfCharacterClose()
+void ABlasterPlayer::HideCharacterIfCameraClose()
 {
 	if (!IsLocallyControlled()) return;
 	if ((FollowCamera->GetComponentLocation() - GetActorLocation()).Size() < CameraThreshold)
@@ -1154,5 +1229,26 @@ bool ABlasterPlayer::IsLocallyReloading()
 {
 	if (Kombat == nullptr) return false;
 	return Kombat->bLocallyReloading;
+}
+
+bool ABlasterPlayer::IsHoldingTheFlag() const
+{
+	if (Kombat == nullptr) return false;
+	return Kombat->bHoldingTheFlag;
+}
+
+ETeam ABlasterPlayer::GetTeam()
+{
+	BlasterPlayerState = BlasterPlayerState == nullptr ? GetPlayerState<ABlasterPlayerState>() : BlasterPlayerState; 
+	if (BlasterPlayerState == nullptr) return ETeam::ET_NoTeam;
+
+	return BlasterPlayerState->GetTeam();
+}
+
+void ABlasterPlayer::SetHoldingTheFlag(bool bHolding)
+{
+	if (Kombat == nullptr) return;
+
+	Kombat->bHoldingTheFlag = bHolding;
 }
 

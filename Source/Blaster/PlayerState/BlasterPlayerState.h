@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerState.h"
+#include "Blaster/BlasterTypes/Team.h"
 #include "BlasterPlayerState.generated.h"
 
 /**
@@ -25,7 +26,8 @@ public:
 	void AddToScore(float ScoreAmount);
 	void AddToDeaths(int32 DeathsAmount);
 	void UpdateDeathMessage(FString DeathMessage);
-	//void DisplayDeathMessage(bool Display);
+
+	void SetTeam(ETeam TeamToSet);
 
 private:
 
@@ -39,4 +41,14 @@ private:
 
 	UPROPERTY(ReplicatedUsing = OnRep_DeathMessage)
 	FString DeathMessageVariable;
+
+	UPROPERTY(ReplicatedUsing = OnRep_Team)  
+	ETeam Team = ETeam::ET_NoTeam;
+
+	UFUNCTION()
+	void OnRep_Team();
+
+public:
+
+	FORCEINLINE ETeam GetTeam() const { return Team; }
 };
